@@ -1,0 +1,327 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields:
+    //   - email: string (required) - User's email address
+    //   - displayName: string (required) - User's full name
+    //   - role: string (required) - one of ['super_admin', 'school_admin', 'teacher', 'student', 'parent']
+    //   - organizationId: string (required for non-super_admins) - ID of the organization
+    //   - entityId: string (optional) - Link to student/teacher record
+    //   - photoURL: string (optional) - Profile picture URL
+    //
+    // Collection: organizations
+    // Fields:
+    //   - name: string (required)
+    //   - status: string (required) - ['pending', 'approved', 'rejected', 'suspended']
+    //   - subscriptionPlan: string (required)
+    //   - primaryColor: string (optional)
+    //   - secondaryColor: string (optional)
+    //   - logoUrl: string (optional)
+    //   - customDomain: string (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == "sahrbsesay@gmail.com" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin')
+      );
+    }
+
+    function isSchoolManagement(orgId) {
+      return isAuthenticated() && 
+             getAuthUserData().organizationId == orgId && 
+             (getAuthUserData().role == 'school_admin' || 
+              getAuthUserData().role == 'principal' || 
+              getAuthUserData().role == 'vice_principal');
+    }
+
+    function isExamOfficer(orgId) {
+      return isAuthenticated() && 
+             getAuthUserData().organizationId == orgId && 
+             getAuthUserData().role == 'exam_officer';
+    }
+
+    function isHOD(orgId) {
+      return isAuthenticated() && 
+             getAuthUserData().organizationId == orgId && 
+             getAuthUserData().role == 'hod';
+    }
+
+    function isTeacher(orgId) {
+      return isAuthenticated() && 
+             getAuthUserData().organizationId == orgId && 
+             getAuthUserData().role == 'teacher';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getAuthUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isMemberOfOrg(orgId) {
+      return isAuthenticated() && 
+             getAuthUserData().organizationId == orgId;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'displayName', 'role']) &&
+             data.email is string &&
+             data.displayName is string &&
+             data.role in ['super_admin', 'school_admin', 'principal', 'vice_principal', 'exam_officer', 'hod', 'teacher', 'student', 'parent'] &&
+             (data.role == 'super_admin' || (data.organizationId is string && data.organizationId != ''));
+    }
+
+    function isValidOrganization(data) {
+      return data.keys().hasAll(['name', 'status', 'subscriptionPlan']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.status in ['pending', 'approved', 'rejected', 'suspended'] &&
+             data.subscriptionPlan in ['basic', 'premium', 'enterprise'] &&
+             (!('primaryColor' in data) || (data.primaryColor is string && data.primaryColor.matches("^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"))) &&
+             (!('secondaryColor' in data) || (data.secondaryColor is string && data.secondaryColor.matches("^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"))) &&
+             (!('logoUrl' in data) || (data.logoUrl is string && data.logoUrl.size() < 2000000)) &&
+             (!('customDomain' in data) || (data.customDomain is string && data.customDomain.size() < 255));
+    }
+
+    // ===============================================================
+    // Organizations
+    // ===============================================================
+    match /organizations/{orgId} {
+      allow get: if isAuthenticated(); 
+      allow list: if isAdmin();
+      allow create: if isAuthenticated() && isValidOrganization(request.resource.data) && request.resource.data.status == 'pending';
+      allow update: if (isAdmin() || (
+        isSchoolManagement(orgId) && 
+        // School management cannot change status or subscription plan
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'subscriptionPlan'])
+      )) && isValidOrganization(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // Users
+    // ===============================================================
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAuthenticated() && (
+        isAdmin() || 
+        (resource != null && (
+          resource.data.email == request.auth.token.email || 
+          resource.data.organizationId == getAuthUserData().organizationId
+        ))
+      );
+      
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (
+        // User creating their own profile
+        isOwner(userId) ||
+        // Super admin creating any profile
+        isAdmin() ||
+        // School management creating a profile in their org
+        (isSchoolManagement(request.resource.data.organizationId) && 
+         request.resource.data.role != 'super_admin')
+      );
+                    
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (
+        isOwner(userId) || 
+        isAdmin() || 
+        (isSchoolManagement(resource.data.organizationId) && 
+         request.resource.data.role != 'super_admin')
+      );
+      
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // Organization-scoped data
+    // ===============================================================
+    
+    // Announcements - Allow view tracking for all members
+    match /organizations/{orgId}/announcements/{announcementId} {
+      allow read: if isMemberOfOrg(orgId) || isAdmin();
+      allow create, delete: if isAdmin() || isSchoolManagement(orgId) || isTeacher(orgId) || isExamOfficer(orgId);
+      allow update: if isAdmin() || isSchoolManagement(orgId) || isTeacher(orgId) || isExamOfficer(orgId) || (
+        // Allow any member to track their own view
+        isMemberOfOrg(orgId) && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewCount', 'viewedBy']) &&
+        request.resource.data.viewCount == resource.data.viewCount + 1 &&
+        request.resource.data.viewedBy.hasAll(resource.data.viewedBy) &&
+        request.resource.data.viewedBy.size() == resource.data.viewedBy.size() + 1 &&
+        request.auth.uid in request.resource.data.viewedBy
+      );
+    }
+
+    // Reminders - Owner only
+    match /organizations/{orgId}/reminders/{reminderId} {
+      allow read, write: if isAuthenticated() && (
+        isAdmin() || 
+        (request.resource.data.userId == request.auth.uid && isMemberOfOrg(orgId)) ||
+        (resource != null && resource.data.userId == request.auth.uid)
+      );
+    }
+
+    // Default rule for most collections
+    match /organizations/{orgId}/{collection}/{docId} {
+      allow read: if isMemberOfOrg(orgId) || isAdmin();
+      allow write: if isAdmin() || isSchoolManagement(orgId) || isExamOfficer(orgId) || isHOD(orgId) || isTeacher(orgId);
+    }
+
+    // Lesson Notes - Teachers create, HODs approve
+    match /organizations/{orgId}/lesson_notes/{noteId} {
+      allow read: if isMemberOfOrg(orgId) || isAdmin();
+      allow create: if isTeacher(orgId) && request.resource.data.teacherId == request.auth.uid;
+      allow update: if (isTeacher(orgId) && resource.data.teacherId == request.auth.uid && request.resource.data.status == 'submitted') ||
+                    (isHOD(orgId) && (request.resource.data.status == 'approved' || request.resource.data.status == 'rejected'));
+      allow delete: if isTeacher(orgId) && resource.data.teacherId == request.auth.uid && resource.data.status == 'draft';
+    }
+
+    // Class Master Assignments - Exam Officer assigns, Principal approves
+    match /organizations/{orgId}/class_master_assignments/{assignmentId} {
+      allow read: if isMemberOfOrg(orgId) || isAdmin();
+      allow create: if isExamOfficer(orgId) && request.resource.data.assignedBy == request.auth.uid;
+      allow update: if (isExamOfficer(orgId) && resource.data.assignedBy == request.auth.uid) ||
+                    (isSchoolManagement(orgId) && (request.resource.data.status == 'approved' || request.resource.data.status == 'rejected'));
+      allow delete: if isExamOfficer(orgId) || isSchoolManagement(orgId);
+    }
+
+    // Invigilator Assignments - Exam Officer manages
+    match /organizations/{orgId}/invigilator_assignments/{assignmentId} {
+      allow read: if isMemberOfOrg(orgId) || isAdmin();
+      allow write: if isExamOfficer(orgId) || isSchoolManagement(orgId);
+    }
+
+    // Exam Subjects - Teachers submit questions, Exam Officer approves
+    match /organizations/{orgId}/exam_subjects/{subjectId} {
+      allow read: if isMemberOfOrg(orgId) || isAdmin();
+      allow write: if isExamOfficer(orgId) || isSchoolManagement(orgId) || (isTeacher(orgId) && request.resource.data.teacherId == request.auth.uid);
+    }
+
+    // Sensitive Student Data - Restricted to Management and HODs
+    match /organizations/{orgId}/student_profiles/{docId} {
+      allow read: if isAdmin() || isSchoolManagement(orgId) || isHOD(orgId) || isTeacher(orgId);
+      allow write: if isAdmin() || isSchoolManagement(orgId) || isExamOfficer(orgId);
+    }
+
+    match /organizations/{orgId}/student_medical_records/{docId} {
+      allow read: if isAdmin() || isSchoolManagement(orgId);
+      allow write: if isAdmin() || isSchoolManagement(orgId);
+    }
+
+    match /organizations/{orgId}/student_addresses/{docId} {
+      allow read: if isAdmin() || isSchoolManagement(orgId);
+      allow write: if isAdmin() || isSchoolManagement(orgId);
+    }
+
+    match /organizations/{orgId}/student_guardians/{docId} {
+      allow read: if isAdmin() || isSchoolManagement(orgId);
+      allow write: if isAdmin() || isSchoolManagement(orgId);
+    }
+
+    match /organizations/{orgId}/student_documents/{docId} {
+      allow read: if isAdmin() || isSchoolManagement(orgId);
+      allow write: if isAdmin() || isSchoolManagement(orgId);
+    }
+
+    // Academic Records - Teachers can read/write their own or for their classes
+    match /organizations/{orgId}/exam_results/{docId} {
+      allow read: if isMemberOfOrg(orgId) || isAdmin();
+      allow write: if isAdmin() || isSchoolManagement(orgId) || isExamOfficer(orgId) || isTeacher(orgId);
+    }
+
+    match /organizations/{orgId}/attendance_records/{docId} {
+      allow read: if isMemberOfOrg(orgId) || isAdmin();
+      allow write: if isAdmin() || isSchoolManagement(orgId) || isTeacher(orgId);
+    }
+
+    // Specific rules for assignment submissions
+    match /organizations/{orgId}/assignment_submissions/{submissionId} {
+      allow create: if isMemberOfOrg(orgId) && 
+                    getAuthUserData().role == 'student' && 
+                    request.resource.data.studentId == request.auth.uid;
+      allow update: if isMemberOfOrg(orgId) && 
+                    getAuthUserData().role == 'student' && 
+                    resource.data.studentId == request.auth.uid &&
+                    request.resource.data.studentId == resource.data.studentId;
+    }
+
+    // ===============================================================
+    // Settings & Support
+    // ===============================================================
+    match /settings/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /support_tickets/{ticketId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        isSchoolManagement(resource.data.organizationId) ||
+        resource.data.senderId == request.auth.uid
+      );
+      
+      allow create: if isAuthenticated() && 
+                    request.resource.data.senderId == request.auth.uid &&
+                    request.resource.data.status == 'open';
+                    
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        isSchoolManagement(resource.data.organizationId) ||
+        resource.data.senderId == request.auth.uid
+      );
+    }
+
+    // ===============================================================
+    // Messaging & Channels
+    // ===============================================================
+    match /channels/{channelId} {
+      allow read: if isAuthenticated() && 
+                  (isAdmin() || request.auth.uid in resource.data.participantIds);
+      
+      allow create: if isAuthenticated() && 
+                    (isAdmin() || request.auth.uid in request.resource.data.participantIds);
+      
+      allow update: if isAuthenticated() && 
+                    (isAdmin() || request.auth.uid in resource.data.participantIds);
+
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && 
+                    (isAdmin() || request.auth.uid in get(/databases/$(database)/documents/channels/$(channelId)).data.participantIds);
+        
+        allow create: if isAuthenticated() && 
+                      (isAdmin() || request.auth.uid in get(/databases/$(database)/documents/channels/$(channelId)).data.participantIds) &&
+                      request.resource.data.fromUserId == request.auth.uid;
+
+        allow update: if isAuthenticated() && 
+                      (isAdmin() || request.auth.uid in get(/databases/$(database)/documents/channels/$(channelId)).data.participantIds) &&
+                      // Only allow updating the 'read' field
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      }
+    }
+    match /invitations/{inviteId} {
+      allow get: if true; // Allow anyone to fetch a specific invitation by ID for login/onboarding
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && request.resource.data.status == 'accepted');
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,1750 @@
+{
+  "entities": {
+    "invitations": {
+      "title": "School Invitation",
+      "description": "An invitation for a school to join the platform.",
+      "type": "object",
+      "properties": {
+        "schoolName": { "type": "string" },
+        "recipientEmail": { "type": "string", "format": "email" },
+        "plan": { "type": "string", "enum": ["basic", "premium", "enterprise"] },
+        "status": { "type": "string", "enum": ["pending", "accepted", "expired"] },
+        "invitedBy": { "type": "string", "description": "UID of the super admin who sent the invite." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "acceptedAt": { "type": "string", "format": "date-time" },
+        "acceptedBy": { "type": "string", "description": "UID of the user who accepted the invite." }
+      },
+      "required": ["schoolName", "recipientEmail", "plan", "status", "invitedBy", "createdAt"]
+    },
+    "organizations": {
+      "title": "Organization",
+      "description": "A school or educational institution.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the school." },
+        "address": { "type": "string" },
+        "subscriptionPlan": { "type": "string", "enum": ["basic", "premium", "enterprise"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "logoUrl": { "type": "string", "format": "uri" },
+        "primaryColor": { "type": "string" },
+        "secondaryColor": { "type": "string" },
+        "customDomain": { "type": "string" },
+        "defaultGradingScaleId": { "type": "string", "description": "The ID of the default grading scale for the organization." }
+      },
+      "required": ["name", "subscriptionPlan"]
+    },
+    "users": {
+      "title": "User",
+      "description": "A user of the platform (admin, teacher, student, parent).",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["super_admin", "school_admin", "principal", "vice_principal", "exam_officer", "hod", "teacher", "student", "parent"] },
+        "organizationId": { "type": "string", "description": "The ID of the organization this user belongs to." },
+        "photoURL": { "type": "string" }
+      },
+      "required": ["email", "role", "organizationId"]
+    },
+    "students": {
+      "title": "Student",
+      "description": "A student profile.",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string", "description": "Unique school-issued ID." },
+        "gradeLevel": { "type": "string" },
+        "dateOfBirth": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["active", "inactive", "graduated", "transferred"] },
+        "enrollmentDate": { "type": "string", "format": "date" },
+        "gender": { "type": "string" }
+      },
+      "required": ["firstName", "lastName", "organizationId", "studentId", "status", "enrollmentDate"]
+    },
+    "student_profiles": {
+      "title": "Student Profile",
+      "description": "Extended profile information for a student.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "bio": { "type": "string" },
+        "hobbies": { "type": "array", "items": { "type": "string" } },
+        "extracurriculars": { "type": "array", "items": { "type": "string" } },
+        "primaryLanguage": { "type": "string" },
+        "nationality": { "type": "string" }
+      },
+      "required": ["studentId", "organizationId"]
+    },
+    "student_guardians": {
+      "title": "Student Guardian",
+      "description": "A parent or guardian of a student.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "relationship": { "type": "string", "enum": ["mother", "father", "guardian", "other"] },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "isEmergencyContact": { "type": "boolean" },
+        "isPrimary": { "type": "boolean" }
+      },
+      "required": ["studentId", "organizationId", "firstName", "lastName", "relationship", "phone"]
+    },
+    "student_medical_records": {
+      "title": "Student Medical Record",
+      "description": "Medical information for a student.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "bloodType": { "type": "string" },
+        "allergies": { "type": "array", "items": { "type": "string" } },
+        "conditions": { "type": "array", "items": { "type": "string" } },
+        "medications": { "type": "array", "items": { "type": "string" } },
+        "doctorName": { "type": "string" },
+        "doctorPhone": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["studentId", "organizationId"]
+    },
+    "student_addresses": {
+      "title": "Student Address",
+      "description": "Address information for a student.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "type": { "type": "string", "enum": ["home", "mailing", "other"] },
+        "street1": { "type": "string" },
+        "street2": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "zipCode": { "type": "string" },
+        "country": { "type": "string" },
+        "isPrimary": { "type": "boolean" }
+      },
+      "required": ["studentId", "organizationId", "type", "street1", "city", "state", "zipCode", "country"]
+    },
+    "student_enrollment_history": {
+      "title": "Student Enrollment History",
+      "description": "Enrollment history for a student.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["completed", "withdrawn", "current"] },
+        "previousSchool": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["studentId", "organizationId", "academicYear", "gradeLevel", "startDate", "status"]
+    },
+    "student_documents": {
+      "title": "Student Document",
+      "description": "A document uploaded for a student.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["transcript", "id", "medical", "permission_slip", "other"] },
+        "url": { "type": "string", "format": "uri" },
+        "uploadedAt": { "type": "string", "format": "date-time" },
+        "uploadedBy": { "type": "string" }
+      },
+      "required": ["studentId", "organizationId", "title", "type", "url", "uploadedAt", "uploadedBy"]
+    },
+    "student_tags": {
+      "title": "Student Tag",
+      "description": "A tag associated with a student.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "label": { "type": "string" },
+        "color": { "type": "string" }
+      },
+      "required": ["studentId", "organizationId", "label", "color"]
+    },
+    "teachers": {
+      "title": "Teacher",
+      "description": "A teacher profile.",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive", "on_leave"] },
+        "hireDate": { "type": "string", "format": "date" },
+        "gender": { "type": "string" }
+      },
+      "required": ["firstName", "lastName", "organizationId", "teacherId", "email", "status", "hireDate"]
+    },
+    "teacher_profiles": {
+      "title": "Teacher Profile",
+      "description": "Extended profile information for a teacher.",
+      "type": "object",
+      "properties": {
+        "teacherId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "bio": { "type": "string" },
+        "address": { "type": "string" },
+        "emergencyContactName": { "type": "string" },
+        "emergencyContactPhone": { "type": "string" },
+        "emergencyContactRelation": { "type": "string" },
+        "photoURL": { "type": "string", "format": "uri" }
+      },
+      "required": ["teacherId", "organizationId"]
+    },
+    "teacher_departments": {
+      "title": "Teacher Department",
+      "description": "Department assignment for a teacher.",
+      "type": "object",
+      "properties": {
+        "teacherId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "departmentId": { "type": "string" },
+        "role": { "type": "string", "enum": ["head", "teacher", "assistant"] },
+        "isHead": { "type": "boolean" }
+      },
+      "required": ["teacherId", "organizationId", "departmentId", "role"]
+    },
+    "teacher_qualifications": {
+      "title": "Teacher Qualification",
+      "description": "Educational qualification of a teacher.",
+      "type": "object",
+      "properties": {
+        "teacherId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "degree": { "type": "string" },
+        "institution": { "type": "string" },
+        "yearOfPassing": { "type": "number" },
+        "subjectSpecialization": { "type": "string" }
+      },
+      "required": ["teacherId", "organizationId", "degree", "institution", "yearOfPassing"]
+    },
+    "teacher_schedule_preferences": {
+      "title": "Teacher Schedule Preference",
+      "description": "Scheduling preferences for a teacher.",
+      "type": "object",
+      "properties": {
+        "teacherId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "maxHoursPerWeek": { "type": "number" },
+        "preferredDays": { "type": "array", "items": { "type": "string" } },
+        "unavailableTimeSlots": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "day": { "type": "string" },
+              "startTime": { "type": "string" },
+              "endTime": { "type": "string" }
+            }
+          } 
+        }
+      },
+      "required": ["teacherId", "organizationId"]
+    },
+    "teacher_workload": {
+      "title": "Teacher Workload",
+      "description": "Current workload assignment for a teacher.",
+      "type": "object",
+      "properties": {
+        "teacherId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "assignedClasses": { "type": "array", "items": { "type": "string" } },
+        "assignedSubjects": { "type": "array", "items": { "type": "string" } },
+        "totalWeeklyHours": { "type": "number" }
+      },
+      "required": ["teacherId", "organizationId"]
+    },
+    "classes": {
+      "title": "Class",
+      "description": "A class or course section.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "subject": { "type": "string" },
+        "academicYear": { "type": "string" }
+      },
+      "required": ["name", "organizationId", "teacherId"]
+    },
+    "attendance": {
+      "title": "Attendance",
+      "description": "Attendance record for a student in a class.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "classId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["present", "absent", "late", "excused"] },
+        "method": { "type": "string", "enum": ["manual", "qr", "nfc"], "description": "Method used to record attendance." }
+      },
+      "required": ["studentId", "classId", "organizationId", "date", "status"]
+    },
+    "exams": {
+      "title": "Exam",
+      "description": "An exam or assessment.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "classId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "maxScore": { "type": "number" }
+      },
+      "required": ["title", "organizationId", "classId", "maxScore"]
+    },
+    "ai_grading_jobs": {
+      "title": "AI Grading Job",
+      "description": "A job for AI-powered grading of student submissions.",
+      "type": "object",
+      "properties": {
+        "examId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "processing", "completed", "failed"] },
+        "results": { "type": "string", "description": "JSON string of grading results." }
+      },
+      "required": ["examId", "organizationId", "status"]
+    },
+    "academic_years": {
+      "title": "Academic Year",
+      "description": "An academic year for an organization.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "isCurrent": { "type": "boolean" }
+      },
+      "required": ["name", "startDate", "endDate", "isCurrent"]
+    },
+    "departments": {
+      "title": "Department",
+      "description": "A department within a school.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "grading_scales": {
+      "title": "Grading Scale",
+      "description": "A grading scale for an organization.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "grades": { "type": "array", "items": { "type": "object" } }
+      },
+      "required": ["name", "grades"]
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Organization settings.",
+      "type": "object",
+      "properties": {
+        "timezone": { "type": "string" },
+        "dateFormat": { "type": "string" },
+        "featuresEnabled": { "type": "object" },
+        "setupCompletedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "class_sections": {
+      "title": "Class Section",
+      "description": "A specific section of a class.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "classId": { "type": "string" },
+        "sectionName": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "gradeLevel": { "type": "string" },
+        "capacity": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      },
+      "required": ["organizationId", "classId", "sectionName", "academicYear", "gradeLevel", "status"]
+    },
+    "class_students": {
+      "title": "Class Student",
+      "description": "A student enrolled in a class section.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "sectionId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "enrollmentDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["active", "withdrawn", "transferred"] }
+      },
+      "required": ["organizationId", "sectionId", "studentId", "enrollmentDate", "status"]
+    },
+    "class_teachers": {
+      "title": "Class Teacher",
+      "description": "A teacher assigned to a class section.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "sectionId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "role": { "type": "string", "enum": ["primary", "assistant", "substitute"] },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" }
+      },
+      "required": ["organizationId", "sectionId", "teacherId", "role", "startDate"]
+    },
+    "classrooms": {
+      "title": "Classroom",
+      "description": "A physical classroom or learning space.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "name": { "type": "string" },
+        "building": { "type": "string" },
+        "floor": { "type": "number" },
+        "capacity": { "type": "number" },
+        "type": { "type": "string", "enum": ["general", "lab", "gym", "library", "other"] },
+        "status": { "type": "string", "enum": ["available", "maintenance", "unavailable"] }
+      },
+      "required": ["organizationId", "name", "capacity", "type", "status"]
+    },
+    "classroom_resources": {
+      "title": "Classroom Resource",
+      "description": "A resource or equipment assigned to a classroom.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "classroomId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["electronic", "furniture", "educational", "other"] },
+        "quantity": { "type": "number" },
+        "condition": { "type": "string", "enum": ["new", "good", "fair", "poor"] },
+        "lastChecked": { "type": "string", "format": "date" }
+      },
+      "required": ["organizationId", "classroomId", "name", "type", "quantity", "condition"]
+    },
+    "timetable_templates": {
+      "title": "Timetable Template",
+      "description": "A template defining the structure of a timetable.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "daysPerWeek": { "type": "number" },
+        "slotsPerDay": { "type": "number" },
+        "defaultSlotDuration": { "type": "number" }
+      },
+      "required": ["organizationId", "name", "daysPerWeek", "slotsPerDay"]
+    },
+    "timetable_rules": {
+      "title": "Timetable Rule",
+      "description": "A rule or constraint for timetable generation.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["teacher_availability", "room_capacity", "subject_consecutive", "other"] },
+        "priority": { "type": "number" },
+        "config": { "type": "object" }
+      },
+      "required": ["organizationId", "name", "type", "priority"]
+    },
+    "timetable_slots": {
+      "title": "Timetable Slot",
+      "description": "A specific time slot within a timetable template.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "templateId": { "type": "string" },
+        "dayOfWeek": { "type": "number" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "label": { "type": "string" }
+      },
+      "required": ["organizationId", "templateId", "dayOfWeek", "startTime", "endTime"]
+    },
+    "timetables": {
+      "title": "Timetable",
+      "description": "A generated or drafted timetable.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "name": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "status": { "type": "string", "enum": ["draft", "published", "archived"] },
+        "templateId": { "type": "string" }
+      },
+      "required": ["organizationId", "name", "academicYear", "status", "templateId"]
+    },
+    "timetable_entries": {
+      "title": "Timetable Entry",
+      "description": "A specific assignment of a class to a slot in a timetable.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "timetableId": { "type": "string" },
+        "slotId": { "type": "string" },
+        "classSectionId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "classroomId": { "type": "string" },
+        "subject": { "type": "string" }
+      },
+      "required": ["organizationId", "timetableId", "slotId", "classSectionId", "teacherId", "classroomId"]
+    },
+    "timetable_conflicts": {
+      "title": "Timetable Conflict",
+      "description": "A conflict detected within a timetable.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "timetableId": { "type": "string" },
+        "type": { "type": "string", "enum": ["teacher_clash", "room_clash", "student_clash", "other"] },
+        "description": { "type": "string" },
+        "severity": { "type": "string", "enum": ["error", "warning"] },
+        "affectedEntryIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["organizationId", "timetableId", "type", "severity", "affectedEntryIds"]
+    },
+    "timetable_versions": {
+      "title": "Timetable Version",
+      "description": "A versioned snapshot of a timetable.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "timetableId": { "type": "string" },
+        "versionNumber": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "snapshot": { "type": "string" }
+      },
+      "required": ["organizationId", "timetableId", "versionNumber", "createdAt", "createdBy", "snapshot"]
+    },
+    "attendance_sessions": {
+      "title": "Attendance Session",
+      "description": "A specific session for which attendance is recorded.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "classSectionId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "subject": { "type": "string" },
+        "status": { "type": "string", "enum": ["scheduled", "in_progress", "completed", "cancelled"] },
+        "timetableEntryId": { "type": "string" }
+      },
+      "required": ["organizationId", "classSectionId", "teacherId", "date", "status"]
+    },
+    "attendance_records": {
+      "title": "Attendance Record",
+      "description": "A record of a student's attendance for a session.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "status": { "type": "string", "enum": ["present", "absent", "late", "excused"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "markedBy": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["organizationId", "sessionId", "studentId", "status", "timestamp", "markedBy"]
+    },
+    "attendance_exceptions": {
+      "title": "Attendance Exception",
+      "description": "An approved absence or exception for a student.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "type": { "type": "string", "enum": ["medical", "family", "other"] },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "approvedBy": { "type": "string" }
+      },
+      "required": ["organizationId", "studentId", "startDate", "endDate", "type", "reason", "status"]
+    },
+    "attendance_reports": {
+      "title": "Attendance Report",
+      "description": "A generated attendance report.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "type": { "type": "string", "enum": ["daily", "weekly", "monthly", "student", "class"] },
+        "dateRange": { "type": "object" },
+        "filters": { "type": "object" },
+        "data": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "generatedBy": { "type": "string" }
+      },
+      "required": ["organizationId", "type", "dateRange", "createdAt", "generatedBy"]
+    },
+    "daily_attendance": {
+      "title": "Daily Attendance",
+      "description": "General daily attendance for a class section.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "classSectionId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "markedBy": { "type": "string" },
+        "records": { 
+          "type": "array", 
+          "items": { 
+            "type": "object",
+            "properties": {
+              "studentId": { "type": "string" },
+              "status": { "type": "string", "enum": ["present", "absent", "late", "excused"] },
+              "notes": { "type": "string" }
+            }
+          } 
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "classSectionId", "date", "markedBy", "records"]
+    },
+    "exam_sessions": {
+      "title": "Exam Session",
+      "description": "A session grouping multiple exams (e.g., First Term Exams).",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "name": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["draft", "published", "completed"] }
+      },
+      "required": ["organizationId", "name", "academicYear", "status"]
+    },
+    "exam_subjects": {
+      "title": "Exam Subject",
+      "description": "A subject within an exam session for a specific class.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "classSectionId": { "type": "string" },
+        "subject": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "maxScore": { "type": "number" },
+        "passingScore": { "type": "number" },
+        "teacherId": { "type": "string" }
+      },
+      "required": ["organizationId", "sessionId", "classSectionId", "subject", "maxScore"]
+    },
+    "exam_results": {
+      "title": "Exam Result",
+      "description": "A student's result for a specific exam subject.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "examSubjectId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "score": { "type": "number" },
+        "grade": { "type": "string" },
+        "remarks": { "type": "string" },
+        "markedBy": { "type": "string" },
+        "isAIGraded": { "type": "boolean" }
+      },
+      "required": ["organizationId", "examSubjectId", "studentId", "score"]
+    },
+    "exam_grading_rules": {
+      "title": "Exam Grading Rule",
+      "description": "Rules for calculating grades based on scores.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "name": { "type": "string" },
+        "scaleId": { "type": "string" },
+        "rules": { "type": "array", "items": { "type": "object" } }
+      },
+      "required": ["organizationId", "name", "scaleId"]
+    },
+    "report_cards": {
+      "title": "Report Card",
+      "description": "A student's final report card for an exam session.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "totalScore": { "type": "number" },
+        "averageScore": { "type": "number" },
+        "rank": { "type": "number" },
+        "status": { "type": "string", "enum": ["draft", "published"] },
+        "generatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "sessionId", "studentId", "status"]
+    },
+    "report_card_comments": {
+      "title": "Report Card Comment",
+      "description": "Comments on a student's report card.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "reportCardId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "comment": { "type": "string" },
+        "type": { "type": "string", "enum": ["general", "subject_specific", "principal"] }
+      },
+      "required": ["organizationId", "reportCardId", "teacherId", "comment"]
+    },
+    "ai_grading_results": {
+      "title": "AI Grading Result",
+      "description": "Detailed AI-generated grading results.",
+      "type": "object",
+      "properties": {
+        "jobId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "score": { "type": "number" },
+        "feedback": { "type": "string" },
+        "criteriaBreakdown": { "type": "object" }
+      },
+      "required": ["jobId", "studentId", "score"]
+    },
+    "ai_grading_feedback": {
+      "title": "AI Grading Feedback",
+      "description": "Human feedback on AI grading results.",
+      "type": "object",
+      "properties": {
+        "resultId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" }
+      },
+      "required": ["resultId", "teacherId", "rating"]
+    },
+    "ai_grading_model_versions": {
+      "title": "AI Grading Model Version",
+      "description": "Versions of the AI model used for grading.",
+      "type": "object",
+      "properties": {
+        "version": { "type": "string" },
+        "description": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "deployedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["version", "isActive"]
+    },
+    "assignments": {
+      "title": "Assignment",
+      "description": "An assignment given to a class section.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "classSectionId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "maxScore": { "type": "number" },
+        "status": { "type": "string", "enum": ["draft", "published", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "classSectionId", "teacherId", "title", "dueDate", "maxScore", "status", "createdAt"]
+    },
+    "assignment_submissions": {
+      "title": "Assignment Submission",
+      "description": "A student's submission for an assignment.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "assignmentId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "contentUrl": { "type": "string", "format": "uri" },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "submitted", "late", "graded"] }
+      },
+      "required": ["organizationId", "assignmentId", "studentId", "submittedAt", "status"]
+    },
+    "assignment_grades": {
+      "title": "Assignment Grade",
+      "description": "A grade for an assignment submission.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "submissionId": { "type": "string" },
+        "assignmentId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "score": { "type": "number" },
+        "gradedBy": { "type": "string" },
+        "gradedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "submissionId", "assignmentId", "studentId", "score", "gradedBy", "gradedAt"]
+    },
+    "assignment_feedback": {
+      "title": "Assignment Feedback",
+      "description": "Feedback for an assignment submission.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "submissionId": { "type": "string" },
+        "assignmentId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "comment": { "type": "string" },
+        "feedbackBy": { "type": "string" },
+        "feedbackAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "submissionId", "assignmentId", "studentId", "comment", "feedbackBy", "feedbackAt"]
+    },
+    "channels": {
+      "title": "Chat Channel",
+      "description": "A communication channel (direct or group).",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "name": { "type": "string", "description": "Group name (null for DM)" },
+        "type": { "type": "string", "enum": ["group", "direct"] },
+        "participantIds": { "type": "array", "items": { "type": "string" } },
+        "participants": { "type": "array", "items": { "type": "object" } },
+        "lastMessage": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["organizationId", "type", "participantIds", "createdAt", "updatedAt"]
+    },
+    "messages": {
+      "title": "Chat Message",
+      "description": "A message within a channel.",
+      "type": "object",
+      "properties": {
+        "channelId": { "type": "string" },
+        "fromUserId": { "type": "string" },
+        "sender": { "type": "object" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean" },
+        "attachmentUrl": { "type": "string" }
+      },
+      "required": ["channelId", "fromUserId", "sender", "content", "createdAt", "read"]
+    },
+    "student_identity_cards": {
+      "title": "Student Identity Card",
+      "description": "Information about a student's physical identity card.",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "cardId": { "type": "string", "description": "The printed ID on the card." },
+        "nfcUid": { "type": "string", "description": "UID of the NFC chip." },
+        "qrToken": { "type": "string", "description": "Secure token encoded in the QR code." },
+        "issuedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "suspended", "expired", "lost"] }
+      },
+      "required": ["studentId", "organizationId", "cardId", "issuedAt", "expiresAt", "status"]
+    },
+    "platform_settings": {
+      "title": "Platform Settings",
+      "description": "Global configuration for the entire platform.",
+      "type": "object",
+      "properties": {
+        "defaultLanguage": { "type": "string" },
+        "defaultCurrency": { "type": "string" },
+        "currencies": { "type": "array", "items": { "type": "object" } },
+        "exchangeRates": { "type": "array", "items": { "type": "object" } },
+        "subscriptionPackages": { "type": "array", "items": { "type": "object" } },
+        "security": { "type": "object" },
+        "integrations": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "attendance_anomalies": {
+      "title": "Attendance Anomaly",
+      "description": "Records suspicious attendance patterns detected by AI",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "attendanceId": { "type": "string" },
+        "anomalyType": { "type": "string", "enum": ["late_scan", "multiple_scans", "long_absence", "location_mismatch"] },
+        "severity": { "type": "string", "enum": ["low", "medium", "high"] },
+        "description": { "type": "string" },
+        "detectedAt": { "type": "string", "format": "date-time" },
+        "resolved": { "type": "boolean" },
+        "resolvedAt": { "type": "string", "format": "date-time" },
+        "resolvedBy": { "type": "string" }
+      },
+      "required": ["studentId", "organizationId", "anomalyType", "severity", "detectedAt"]
+    },
+    "student_faces": {
+      "title": "Student Face Embedding",
+      "description": "Stores biometric face recognition data",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "embedding": { "type": "array", "items": { "type": "number" } },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "organizationId", "embedding"]
+    },
+    "fingerprints": {
+      "title": "Student Fingerprint Template",
+      "description": "Stores biometric fingerprint data",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "template": { "type": "string" },
+        "fingerIndex": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["studentId", "organizationId", "template"]
+    },
+    "finance_fees": {
+      "title": "Finance Fee",
+      "description": "Fee structure for students",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "name": { "type": "string" },
+        "amount": { "type": "number" },
+        "dueDate": { "type": "string", "format": "date" },
+        "academicYear": { "type": "string" },
+        "gradeLevel": { "type": "string" }
+      },
+      "required": ["organizationId", "name", "amount", "dueDate"]
+    },
+    "finance_payments": {
+      "title": "Finance Payment",
+      "description": "Payment record for student fees",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "feeId": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentDate": { "type": "string", "format": "date-time" },
+        "method": { "type": "string", "enum": ["cash", "card", "bank_transfer", "online"] },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+        "receiptNumber": { "type": "string" }
+      },
+      "required": ["organizationId", "studentId", "amount", "paymentDate", "method", "status"]
+    },
+    "hr_staff": {
+      "title": "HR Staff",
+      "description": "Non-teaching staff profile",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "role": { "type": "string" },
+        "department": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "hireDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["active", "inactive", "on_leave"] }
+      },
+      "required": ["organizationId", "firstName", "lastName", "role", "email", "status"]
+    },
+    "library_books": {
+      "title": "Library Book",
+      "description": "Book record in the school library",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "isbn": { "type": "string" },
+        "category": { "type": "string" },
+        "totalCopies": { "type": "number" },
+        "availableCopies": { "type": "number" },
+        "location": { "type": "string" }
+      },
+      "required": ["organizationId", "title", "author", "totalCopies"]
+    },
+    "library_borrows": {
+      "title": "Library Borrow",
+      "description": "Record of a book borrowed by a student or teacher",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "userId": { "type": "string" },
+        "borrowDate": { "type": "string", "format": "date-time" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "returnDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["borrowed", "returned", "overdue"] }
+      },
+      "required": ["organizationId", "bookId", "userId", "borrowDate", "dueDate", "status"]
+    },
+    "transport_routes": {
+      "title": "Transport Route",
+      "description": "School bus route",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "routeName": { "type": "string" },
+        "vehicleNumber": { "type": "string" },
+        "driverName": { "type": "string" },
+        "driverPhone": { "type": "string" }
+      },
+      "required": ["organizationId", "routeName", "vehicleNumber"]
+    },
+    "transport_assignments": {
+      "title": "Transport Assignment",
+      "description": "Assignment of a student to a transport route",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "routeId": { "type": "string" },
+        "stopName": { "type": "string" },
+        "pickupTime": { "type": "string" },
+        "dropTime": { "type": "string" }
+      },
+      "required": ["organizationId", "studentId", "routeId"]
+    },
+    "discipline_cases": {
+      "title": "Discipline Case",
+      "description": "Record of a disciplinary incident",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "reportedBy": { "type": "string" },
+        "incidentDate": { "type": "string", "format": "date-time" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "investigating", "resolved"] },
+        "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] }
+      },
+      "required": ["organizationId", "studentId", "incidentDate", "category", "status"]
+    },
+    "discipline_actions": {
+      "title": "Discipline Action",
+      "description": "Action taken for a discipline case",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "caseId": { "type": "string" },
+        "actionType": { "type": "string" },
+        "actionDate": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string" }
+      },
+      "required": ["organizationId", "caseId", "actionType", "actionDate"]
+    },
+    "behavior_reports": {
+      "title": "Behavior Report",
+      "description": "General behavior report for a student",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "reporterId": { "type": "string" },
+        "reportDate": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["positive", "negative"] },
+        "comments": { "type": "string" }
+      },
+      "required": ["organizationId", "studentId", "reportDate", "type"]
+    },
+    "behavior_points": {
+      "title": "Behavior Points",
+      "description": "Points awarded or deducted for behavior",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "points": { "type": "number" },
+        "reason": { "type": "string" },
+        "awardedBy": { "type": "string" },
+        "awardedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "studentId", "points", "reason", "awardedAt"]
+    },
+    "lessons": {
+      "title": "Lesson",
+      "description": "A lesson in the LMS",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "classId": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "classId", "title", "teacherId"]
+    },
+    "lesson_materials": {
+      "title": "Lesson Material",
+      "description": "Material for a lesson",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "lessonId": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["document", "link", "image"] },
+        "url": { "type": "string" }
+      },
+      "required": ["organizationId", "lessonId", "title", "type", "url"]
+    },
+    "lesson_videos": {
+      "title": "Lesson Video",
+      "description": "Video for a lesson",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "lessonId": { "type": "string" },
+        "title": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "duration": { "type": "number" }
+      },
+      "required": ["organizationId", "lessonId", "title", "videoUrl"]
+    },
+    "lesson_quizzes": {
+      "title": "Lesson Quiz",
+      "description": "Quiz for a lesson",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "lessonId": { "type": "string" },
+        "title": { "type": "string" },
+        "questions": { "type": "array" },
+        "dueDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "lessonId", "title"]
+    },
+    "lesson_progress": {
+      "title": "Lesson Progress",
+      "description": "Student progress in a lesson",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "lessonId": { "type": "string" },
+        "status": { "type": "string", "enum": ["not_started", "in_progress", "completed"] },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "studentId", "lessonId", "status"]
+    },
+    "messages": {
+      "title": "Message",
+      "description": "A message in the communication module",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "threadId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "content": { "type": "string" },
+        "sentAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "threadId", "senderId", "content", "sentAt"]
+    },
+    "message_threads": {
+      "title": "Message Thread",
+      "description": "A thread of messages",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "participants": { "type": "array" },
+        "subject": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "participants", "updatedAt"]
+    },
+    "announcements": {
+      "title": "Announcement",
+      "description": "School announcement, notice, or event.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "category": { "type": "string", "enum": ["EVENTS", "EXAMS", "ACTIVITIES", "GENERAL", "URGENT"] },
+        "audience": { "type": "string", "enum": ["ALL", "PARENTS", "STAFF", "STUDENTS"] },
+        "displayType": { "type": "string", "enum": ["ANNOUNCEMENT", "NOTICE", "EVENT"] },
+        "imageUrl": { "type": "string", "format": "uri" },
+        "eventDate": { "type": "string", "format": "date-time" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "isFeatured": { "type": "boolean" },
+        "isPublished": { "type": "boolean" },
+        "viewCount": { "type": "integer" },
+        "viewedBy": { "type": "array", "items": { "type": "string" } },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "title", "message", "category", "audience", "displayType", "createdBy", "createdAt", "isPublished"]
+    },
+    "push_notifications": {
+      "title": "Push Notification",
+      "description": "Push notification record",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["sent", "failed", "read"] }
+      },
+      "required": ["organizationId", "userId", "title", "body", "sentAt"]
+    },
+    "email_logs": {
+      "title": "Email Log",
+      "description": "Log of sent emails",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "recipientEmail": { "type": "string" },
+        "subject": { "type": "string" },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["sent", "failed"] }
+      },
+      "required": ["organizationId", "recipientEmail", "subject", "sentAt"]
+    },
+    "sms_logs": {
+      "title": "SMS Log",
+      "description": "Log of sent SMS messages",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "recipientPhone": { "type": "string" },
+        "content": { "type": "string" },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["sent", "failed"] }
+      },
+      "required": ["organizationId", "recipientPhone", "content", "sentAt"]
+    },
+    "parents": {
+      "title": "Parent",
+      "description": "Parent profile",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" }
+      },
+      "required": ["organizationId", "firstName", "lastName"]
+    },
+    "parent_students": {
+      "title": "Parent Student Link",
+      "description": "Link between parent and student",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "parentId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "relationship": { "type": "string" }
+      },
+      "required": ["organizationId", "parentId", "studentId", "relationship"]
+    },
+    "parent_permissions": {
+      "title": "Parent Permission",
+      "description": "Permissions granted by parents",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "parentId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "permissionType": { "type": "string" },
+        "isGranted": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "parentId", "studentId", "permissionType", "isGranted"]
+    },
+    "parent_meeting_requests": {
+      "title": "Parent Meeting Request",
+      "description": "Meeting request from a parent",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "parentId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "requestedDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "completed"] },
+        "notes": { "type": "string" }
+      },
+      "required": ["organizationId", "parentId", "teacherId", "requestedDate", "status"]
+    },
+    "fee_structures": {
+      "title": "Fee Structure",
+      "description": "Structure of fees",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "name": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "totalAmount": { "type": "number" }
+      },
+      "required": ["organizationId", "name", "academicYear", "totalAmount"]
+    },
+    "fee_items": {
+      "title": "Fee Item",
+      "description": "Individual item in a fee structure",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "structureId": { "type": "string" },
+        "name": { "type": "string" },
+        "amount": { "type": "number" }
+      },
+      "required": ["organizationId", "structureId", "name", "amount"]
+    },
+    "invoices": {
+      "title": "Invoice",
+      "description": "Invoice for a student",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "amount": { "type": "number" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["unpaid", "partial", "paid", "overdue"] },
+        "issuedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "studentId", "amount", "dueDate", "status", "issuedAt"]
+    },
+    "payments": {
+      "title": "Payment",
+      "description": "Payment made against an invoice",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "invoiceId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentDate": { "type": "string", "format": "date-time" },
+        "methodId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] }
+      },
+      "required": ["organizationId", "invoiceId", "studentId", "amount", "paymentDate", "status"]
+    },
+    "payment_methods": {
+      "title": "Payment Method",
+      "description": "Available payment methods",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["cash", "card", "bank_transfer", "online"] },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["organizationId", "name", "type", "isActive"]
+    },
+    "financial_reports": {
+      "title": "Financial Report",
+      "description": "Generated financial report",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "reportType": { "type": "string" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "data": { "type": "object" }
+      },
+      "required": ["organizationId", "reportType", "generatedAt"]
+    },
+    "student_performance_metrics": {
+      "title": "Student Performance Metric",
+      "description": "Performance metrics for a student",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "metricType": { "type": "string" },
+        "value": { "type": "number" },
+        "recordedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "studentId", "metricType", "value", "recordedAt"]
+    },
+    "school_analytics": {
+      "title": "School Analytics",
+      "description": "Aggregated school analytics",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "metricType": { "type": "string" },
+        "value": { "type": "number" },
+        "recordedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "metricType", "value", "recordedAt"]
+    },
+    "teacher_analytics": {
+      "title": "Teacher Analytics",
+      "description": "Analytics for a teacher",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "metricType": { "type": "string" },
+        "value": { "type": "number" },
+        "recordedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "teacherId", "metricType", "value", "recordedAt"]
+    },
+    "attendance_analytics": {
+      "title": "Attendance Analytics",
+      "description": "Aggregated attendance analytics",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "presentCount": { "type": "number" },
+        "absentCount": { "type": "number" },
+        "lateCount": { "type": "number" }
+      },
+      "required": ["organizationId", "date", "presentCount", "absentCount", "lateCount"]
+    },
+    "ai_prediction_models": {
+      "title": "AI Prediction Model",
+      "description": "AI model metadata",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "modelName": { "type": "string" },
+        "version": { "type": "string" },
+        "lastTrainedAt": { "type": "string", "format": "date-time" },
+        "accuracy": { "type": "number" }
+      },
+      "required": ["organizationId", "modelName", "version", "lastTrainedAt"]
+    },
+    "student_risk_predictions": {
+      "title": "Student Risk Prediction",
+      "description": "AI prediction of student risk",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "riskLevel": { "type": "string", "enum": ["low", "medium", "high"] },
+        "factors": { "type": "array" },
+        "predictedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "studentId", "riskLevel", "predictedAt"]
+    },
+    "dropout_predictions": {
+      "title": "Dropout Prediction",
+      "description": "AI prediction of dropout probability",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "probability": { "type": "number" },
+        "predictedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "studentId", "probability", "predictedAt"]
+    },
+    "performance_predictions": {
+      "title": "Performance Prediction",
+      "description": "AI prediction of student performance",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "predictedGrade": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "predictedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "studentId", "predictedGrade", "predictedAt"]
+    },
+    "intervention_recommendations": {
+      "title": "Intervention Recommendation",
+      "description": "AI recommended intervention",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "recommendation": { "type": "string" },
+        "priority": { "type": "string", "enum": ["low", "medium", "high"] },
+        "status": { "type": "string", "enum": ["pending", "applied", "dismissed"] },
+        "generatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "studentId", "recommendation", "priority", "status", "generatedAt"]
+    },
+    "support_tickets": {
+      "title": "Support Ticket",
+      "description": "A support request from a user.",
+      "type": "object",
+      "properties": {
+        "subject": { "type": "string" },
+        "message": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderRole": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "recipientRole": { "type": "string", "enum": ["super_admin", "school_admin"] },
+        "status": { "type": "string", "enum": ["open", "in_progress", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "responses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "message": { "type": "string" },
+              "senderId": { "type": "string" },
+              "senderName": { "type": "string" },
+              "createdAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      },
+      "required": ["subject", "message", "senderId", "senderName", "senderRole", "organizationId", "recipientRole", "status", "createdAt"]
+    },
+    "reminders": {
+      "title": "Reminder",
+      "description": "A reminder for a user about an announcement or event.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "announcementId": { "type": "string" },
+        "title": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "completed", "dismissed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "announcementId", "title", "dueDate", "status", "createdAt"]
+    },
+    "lesson_notes": {
+      "title": "Lesson Note",
+      "description": "A lesson note prepared by a teacher for a subject.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "classSectionId": { "type": "string" },
+        "title": { "type": "string" },
+        "contentUrl": { "type": "string", "format": "uri" },
+        "status": { "type": "string", "enum": ["draft", "submitted", "approved", "rejected"] },
+        "approvedBy": { "type": "string", "description": "UID of the HOD who approved the note." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "teacherId", "subjectId", "title", "status", "createdAt"]
+    },
+    "class_master_assignments": {
+      "title": "Class Master Assignment",
+      "description": "Assignment of a teacher as a class master for a specific section.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "classSectionId": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "assignedBy": { "type": "string", "description": "UID of the Registrar/Exam Officer." },
+        "approvedBy": { "type": "string", "description": "UID of the Principal." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "teacherId", "classSectionId", "academicYear", "status", "assignedBy", "createdAt"]
+    },
+    "invigilator_assignments": {
+      "title": "Invigilator Assignment",
+      "description": "Assignment of a teacher as an invigilator for an exam.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "examSubjectId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "assignedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "examSubjectId", "teacherId", "assignedBy", "createdAt"]
+    },
+    "subjects": {
+      "title": "Subject",
+      "description": "A subject taught in the school.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "name": { "type": "string" },
+        "departmentId": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["organizationId", "name"]
+    },
+    "class_subjects": {
+      "title": "Class Subject",
+      "description": "Assignment of a subject and teacher to a class section.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "classSectionId": { "type": "string" },
+        "subjectId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "academicYear": { "type": "string" }
+      },
+      "required": ["organizationId", "classSectionId", "subjectId", "teacherId", "academicYear"]
+    },
+    "teacher_tasks": {
+      "title": "Teacher Task",
+      "description": "A task for a teacher to manage their workload.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "in_progress", "completed"] },
+        "category": { "type": "string", "enum": ["lesson_planning", "grading", "administrative", "other"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "teacherId", "title", "status", "category", "createdAt"]
+    },
+    "student_face_embeddings": {
+      "title": "Student Face Embedding",
+      "description": "Biometric data for face recognition.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "embedding": { "type": "array", "items": { "type": "number" } },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "studentId", "embedding", "updatedAt"]
+    },
+    "announcement_reminders": {
+      "title": "Announcement Reminder",
+      "description": "A reminder set by a user for an announcement.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "announcementId": { "type": "string" },
+        "userId": { "type": "string" },
+        "reminderTime": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "sent"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "announcementId", "userId", "reminderTime", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/organizations/{orgId}": { "schema": "organizations", "description": "School organizations." },
+    "/users/{userId}": { "schema": "users", "description": "Platform users." },
+    "/organizations/{orgId}/students/{studentId}": { "schema": "students", "description": "Students within an organization." },
+    "/organizations/{orgId}/student_profiles/{profileId}": { "schema": "student_profiles", "description": "Extended student profiles." },
+    "/organizations/{orgId}/student_guardians/{guardianId}": { "schema": "student_guardians", "description": "Student guardians." },
+    "/organizations/{orgId}/student_medical_records/{recordId}": { "schema": "student_medical_records", "description": "Student medical records." },
+    "/organizations/{orgId}/student_addresses/{addressId}": { "schema": "student_addresses", "description": "Student addresses." },
+    "/organizations/{orgId}/student_enrollment_history/{historyId}": { "schema": "student_enrollment_history", "description": "Student enrollment history." },
+    "/organizations/{orgId}/student_documents/{documentId}": { "schema": "student_documents", "description": "Student documents." },
+    "/organizations/{orgId}/student_identity_cards/{cardId}": { "schema": "student_identity_cards", "description": "Student identity cards." },
+    "/organizations/{orgId}/student_tags/{tagId}": { "schema": "student_tags", "description": "Student tags." },
+    "/organizations/{orgId}/teachers/{teacherId}": { "schema": "teachers", "description": "Teachers within an organization." },
+    "/organizations/{orgId}/teacher_profiles/{profileId}": { "schema": "teacher_profiles", "description": "Extended profiles for teachers." },
+    "/organizations/{orgId}/teacher_departments/{deptId}": { "schema": "teacher_departments", "description": "Department assignments for teachers." },
+    "/organizations/{orgId}/teacher_qualifications/{qualId}": { "schema": "teacher_qualifications", "description": "Educational qualifications of teachers." },
+    "/organizations/{orgId}/teacher_schedule_preferences/{prefId}": { "schema": "teacher_schedule_preferences", "description": "Schedule preferences for teachers." },
+    "/organizations/{orgId}/teacher_workload/{workloadId}": { "schema": "teacher_workload", "description": "Workload assignments for teachers." },
+    "/organizations/{orgId}/classes/{classId}": { "schema": "classes", "description": "Classes within an organization." },
+    "/organizations/{orgId}/class_sections/{sectionId}": { "schema": "class_sections", "description": "Specific sections of a class." },
+    "/organizations/{orgId}/class_students/{enrollmentId}": { "schema": "class_students", "description": "Student enrollments in class sections." },
+    "/organizations/{orgId}/class_teachers/{assignmentId}": { "schema": "class_teachers", "description": "Teacher assignments to class sections." },
+    "/organizations/{orgId}/classrooms/{classroomId}": { "schema": "classrooms", "description": "Physical classrooms." },
+    "/organizations/{orgId}/classroom_resources/{resourceId}": { "schema": "classroom_resources", "description": "Resources within classrooms." },
+    "/organizations/{orgId}/timetable_templates/{templateId}": { "schema": "timetable_templates", "description": "Timetable templates." },
+    "/organizations/{orgId}/timetable_rules/{ruleId}": { "schema": "timetable_rules", "description": "Timetable rules." },
+    "/organizations/{orgId}/timetable_slots/{slotId}": { "schema": "timetable_slots", "description": "Timetable slots." },
+    "/organizations/{orgId}/timetables/{timetableId}": { "schema": "timetables", "description": "Timetables." },
+    "/organizations/{orgId}/timetable_entries/{entryId}": { "schema": "timetable_entries", "description": "Timetable entries." },
+    "/organizations/{orgId}/timetable_conflicts/{conflictId}": { "schema": "timetable_conflicts", "description": "Timetable conflicts." },
+    "/organizations/{orgId}/timetable_versions/{versionId}": { "schema": "timetable_versions", "description": "Timetable versions." },
+    "/organizations/{orgId}/attendance/{attendanceId}": { "schema": "attendance", "description": "Attendance records (legacy)." },
+    "/organizations/{orgId}/attendance_sessions/{sessionId}": { "schema": "attendance_sessions", "description": "Attendance sessions." },
+    "/organizations/{orgId}/attendance_records/{recordId}": { "schema": "attendance_records", "description": "Attendance records." },
+    "/organizations/{orgId}/attendance_exceptions/{exceptionId}": { "schema": "attendance_exceptions", "description": "Attendance exceptions." },
+    "/organizations/{orgId}/attendance_reports/{reportId}": { "schema": "attendance_reports", "description": "Attendance reports." },
+    "/organizations/{orgId}/daily_attendance/{attendanceId}": { "schema": "daily_attendance", "description": "Daily general attendance." },
+    "/organizations/{orgId}/exams/{examId}": { "schema": "exams", "description": "Exams." },
+    "/organizations/{orgId}/exam_sessions/{sessionId}": { "schema": "exam_sessions", "description": "Exam sessions." },
+    "/organizations/{orgId}/exam_subjects/{subjectId}": { "schema": "exam_subjects", "description": "Exam subjects." },
+    "/organizations/{orgId}/exam_results/{resultId}": { "schema": "exam_results", "description": "Exam results." },
+    "/organizations/{orgId}/exam_grading_rules/{ruleId}": { "schema": "exam_grading_rules", "description": "Exam grading rules." },
+    "/organizations/{orgId}/report_cards/{reportCardId}": { "schema": "report_cards", "description": "Report cards." },
+    "/organizations/{orgId}/report_card_comments/{commentId}": { "schema": "report_card_comments", "description": "Report card comments." },
+    "/organizations/{orgId}/ai_grading_jobs/{jobId}": { "schema": "ai_grading_jobs", "description": "AI grading jobs." },
+    "/organizations/{orgId}/ai_grading_results/{resultId}": { "schema": "ai_grading_results", "description": "AI grading results." },
+    "/organizations/{orgId}/ai_grading_feedback/{feedbackId}": { "schema": "ai_grading_feedback", "description": "AI grading feedback." },
+    "/organizations/{orgId}/ai_grading_model_versions/{versionId}": { "schema": "ai_grading_model_versions", "description": "AI grading model versions." },
+    "/organizations/{orgId}/assignments/{assignmentId}": { "schema": "assignments", "description": "Assignments." },
+    "/organizations/{orgId}/assignment_submissions/{submissionId}": { "schema": "assignment_submissions", "description": "Assignment submissions." },
+    "/organizations/{orgId}/assignment_grades/{gradeId}": { "schema": "assignment_grades", "description": "Assignment grades." },
+    "/organizations/{orgId}/assignment_feedback/{feedbackId}": { "schema": "assignment_feedback", "description": "Assignment feedback." },
+    "/organizations/{orgId}/academic_years/{yearId}": { "schema": "academic_years", "description": "Academic years." },
+    "/organizations/{orgId}/departments/{deptId}": { "schema": "departments", "description": "Departments." },
+    "/organizations/{orgId}/grading_scales/{scaleId}": { "schema": "grading_scales", "description": "Grading scales." },
+    "/organizations/{orgId}/settings/{settingId}": { "schema": "settings", "description": "Organization settings." },
+    "/organizations/{orgId}/attendance_anomalies/{anomalyId}": { "schema": "attendance_anomalies", "description": "Attendance anomalies." },
+    "/organizations/{orgId}/student_faces/{faceId}": { "schema": "student_faces", "description": "Student face recognition data." },
+    "/organizations/{orgId}/fingerprints/{fingerprintId}": { "schema": "fingerprints", "description": "Student fingerprint templates." },
+    "/organizations/{orgId}/finance_fees/{feeId}": { "schema": "finance_fees", "description": "School fees." },
+    "/organizations/{orgId}/finance_payments/{paymentId}": { "schema": "finance_payments", "description": "Fee payments." },
+    "/organizations/{orgId}/hr_staff/{staffId}": { "schema": "hr_staff", "description": "School staff." },
+    "/organizations/{orgId}/library_books/{bookId}": { "schema": "library_books", "description": "Library books." },
+    "/organizations/{orgId}/library_borrows/{borrowId}": { "schema": "library_borrows", "description": "Book borrows." },
+    "/organizations/{orgId}/transport_routes/{routeId}": { "schema": "transport_routes", "description": "Transport routes." },
+    "/organizations/{orgId}/transport_assignments/{assignmentId}": { "schema": "transport_assignments", "description": "Transport assignments." },
+    "/organizations/{orgId}/discipline_cases/{caseId}": { "schema": "discipline_cases", "description": "Discipline cases." },
+    "/organizations/{orgId}/discipline_actions/{actionId}": { "schema": "discipline_actions", "description": "Discipline actions." },
+    "/organizations/{orgId}/behavior_reports/{reportId}": { "schema": "behavior_reports", "description": "Behavior reports." },
+    "/organizations/{orgId}/behavior_points/{pointId}": { "schema": "behavior_points", "description": "Behavior points." },
+    "/organizations/{orgId}/lessons/{lessonId}": { "schema": "lessons", "description": "Lessons." },
+    "/organizations/{orgId}/lesson_materials/{materialId}": { "schema": "lesson_materials", "description": "Lesson materials." },
+    "/organizations/{orgId}/lesson_videos/{videoId}": { "schema": "lesson_videos", "description": "Lesson videos." },
+    "/organizations/{orgId}/lesson_quizzes/{quizId}": { "schema": "lesson_quizzes", "description": "Lesson quizzes." },
+    "/organizations/{orgId}/lesson_progress/{progressId}": { "schema": "lesson_progress", "description": "Lesson progress." },
+    "/organizations/{orgId}/messages/{messageId}": { "schema": "messages", "description": "Messages." },
+    "/organizations/{orgId}/message_threads/{threadId}": { "schema": "message_threads", "description": "Message threads." },
+    "/organizations/{orgId}/announcements/{announcementId}": { "schema": "announcements", "description": "Announcements." },
+    "/organizations/{orgId}/reminders/{reminderId}": { "schema": "reminders", "description": "User reminders for announcements." },
+    "/organizations/{orgId}/lesson_notes/{noteId}": { "schema": "lesson_notes", "description": "Lesson notes prepared by teachers." },
+    "/organizations/{orgId}/class_master_assignments/{assignmentId}": { "schema": "class_master_assignments", "description": "Class master assignments." },
+    "/organizations/{orgId}/invigilator_assignments/{assignmentId}": { "schema": "invigilator_assignments", "description": "Invigilator assignments for exams." },
+    "/organizations/{orgId}/push_notifications/{notificationId}": { "schema": "push_notifications", "description": "Push notifications." },
+    "/organizations/{orgId}/email_logs/{logId}": { "schema": "email_logs", "description": "Email logs." },
+    "/organizations/{orgId}/sms_logs/{logId}": { "schema": "sms_logs", "description": "SMS logs." },
+    "/organizations/{orgId}/parents/{parentId}": { "schema": "parents", "description": "Parents." },
+    "/organizations/{orgId}/parent_students/{linkId}": { "schema": "parent_students", "description": "Parent student links." },
+    "/organizations/{orgId}/parent_permissions/{permissionId}": { "schema": "parent_permissions", "description": "Parent permissions." },
+    "/organizations/{orgId}/parent_meeting_requests/{requestId}": { "schema": "parent_meeting_requests", "description": "Parent meeting requests." },
+    "/organizations/{orgId}/fee_structures/{structureId}": { "schema": "fee_structures", "description": "Fee structures." },
+    "/organizations/{orgId}/fee_items/{itemId}": { "schema": "fee_items", "description": "Fee items." },
+    "/organizations/{orgId}/invoices/{invoiceId}": { "schema": "invoices", "description": "Invoices." },
+    "/organizations/{orgId}/payments/{paymentId}": { "schema": "payments", "description": "Payments." },
+    "/organizations/{orgId}/payment_methods/{methodId}": { "schema": "payment_methods", "description": "Payment methods." },
+    "/organizations/{orgId}/financial_reports/{reportId}": { "schema": "financial_reports", "description": "Financial reports." },
+    "/organizations/{orgId}/student_performance_metrics/{metricId}": { "schema": "student_performance_metrics", "description": "Student performance metrics." },
+    "/organizations/{orgId}/school_analytics/{analyticId}": { "schema": "school_analytics", "description": "School analytics." },
+    "/organizations/{orgId}/teacher_analytics/{analyticId}": { "schema": "teacher_analytics", "description": "Teacher analytics." },
+    "/organizations/{orgId}/attendance_analytics/{analyticId}": { "schema": "attendance_analytics", "description": "Attendance analytics." },
+    "/organizations/{orgId}/ai_prediction_models/{modelId}": { "schema": "ai_prediction_models", "description": "AI prediction models." },
+    "/organizations/{orgId}/student_risk_predictions/{predictionId}": { "schema": "student_risk_predictions", "description": "Student risk predictions." },
+    "/organizations/{orgId}/dropout_predictions/{predictionId}": { "schema": "dropout_predictions", "description": "Dropout predictions." },
+    "/organizations/{orgId}/performance_predictions/{predictionId}": { "schema": "performance_predictions", "description": "Performance predictions." },
+    "/organizations/{orgId}/intervention_recommendations/{recommendationId}": { "schema": "intervention_recommendations", "description": "Intervention recommendations." },
+    "/support_tickets/{ticketId}": { "schema": "support_tickets", "description": "Support tickets." },
+    "/settings/{settingId}": { "schema": "platform_settings", "description": "Global platform settings." },
+    "/channels/{channelId}": { "schema": "channels", "description": "Chat channels." },
+    "/channels/{channelId}/messages/{messageId}": { "schema": "messages", "description": "Chat messages within a channel." },
+    "/organizations/{orgId}/subjects/{subjectId}": { "schema": "subjects", "description": "Subjects." },
+    "/organizations/{orgId}/class_subjects/{linkId}": { "schema": "class_subjects", "description": "Class subject assignments." },
+    "/organizations/{orgId}/teacher_tasks/{taskId}": { "schema": "teacher_tasks", "description": "Teacher tasks." },
+    "/organizations/{orgId}/student_face_embeddings/{embeddingId}": { "schema": "student_face_embeddings", "description": "Student face recognition data." },
+    "/organizations/{orgId}/announcement_reminders/{reminderId}": { "schema": "announcement_reminders", "description": "Announcement reminders." }
+  }
+}

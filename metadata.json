@@ -1,0 +1,5 @@
+{
+  "name": "EduScale: National Multi-School SaaS",
+  "description": "A modern, AI-powered multi-school management platform featuring automated grading, timetable generation, and student performance prediction.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"]
+}
