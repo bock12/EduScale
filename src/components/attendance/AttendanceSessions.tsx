@@ -196,11 +196,14 @@ export default function AttendanceSessions({ organization, userProfile }: Attend
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
                 try {
+                  const classId = formData.get('classId') as string;
+                  const selectedClass = classes.find(c => c.id === classId);
+                  
                   const newSession = {
                     organizationId: organization.id,
-                    classSectionId: formData.get('classId') as string,
+                    classSectionId: classId,
                     teacherId: formData.get('teacherId') as string,
-                    classroomId: formData.get('classroomId') as string,
+                    classroomId: selectedClass?.classroomId || '',
                     subject: formData.get('subject') as string,
                     date: formData.get('date') as string,
                     startTime: formData.get('startTime') as string,
@@ -223,13 +226,6 @@ export default function AttendanceSessions({ organization, userProfile }: Attend
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-black/40 uppercase tracking-widest mb-2">Classroom</label>
-                    <select name="classroomId" required className="w-full bg-gray-50 border border-black/10 rounded-2xl py-4 px-6 text-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-black/5">
-                      <option value="">Select Classroom</option>
-                      {classrooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
                     <label className="block text-sm font-bold text-black/40 uppercase tracking-widest mb-2">Teacher</label>
                     <select name="teacherId" required className="w-full bg-gray-50 border border-black/10 rounded-2xl py-4 px-6 text-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-black/5">
                       {teachers.map(t => <option key={t.id} value={t.id}>{t.firstName} {t.lastName}</option>)}
@@ -239,7 +235,11 @@ export default function AttendanceSessions({ organization, userProfile }: Attend
                     <label className="block text-sm font-bold text-black/40 uppercase tracking-widest mb-2">Subject</label>
                     <select name="subject" required className="w-full bg-gray-50 border border-black/10 rounded-2xl py-4 px-6 text-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-black/5">
                       <option value="">Select Subject</option>
-                      {subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                      {subjects.map(s => (
+                        <option key={s.id} value={s.name}>
+                          {s.name} ({s.category || 'General'})
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-4">

@@ -326,6 +326,7 @@ export interface ClassSection {
   sectionNumber?: number;
   capacity: number;
   status: 'active' | 'inactive';
+  classroomId?: string;
   subjects?: string[];
 }
 
@@ -646,6 +647,7 @@ export interface Subject {
   name: string;
   departmentId?: string;
   description?: string;
+  category: 'science' | 'arts' | 'commercial' | 'general';
 }
 
 export interface ClassSubject {

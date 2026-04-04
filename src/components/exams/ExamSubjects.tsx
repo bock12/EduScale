@@ -304,7 +304,9 @@ export default function ExamSubjects({ organization, userProfile }: ExamSubjects
                       >
                         <option value="">Select Subject</option>
                         {availableSubjects.map(s => (
-                          <option key={s.id} value={s.name}>{s.name}</option>
+                          <option key={s.id} value={s.name}>
+                            {s.name} ({s.category || 'General'})
+                          </option>
                         ))}
                       </select>
                     </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { Organization, ClassSection, Teacher, Student } from '../../types';
-import { Plus, Users, GraduationCap, Trash2, Edit2, X, Check, ChevronRight, Search, Filter } from 'lucide-react';
+import { Plus, Users, GraduationCap, Trash2, Edit2, X, Check, ChevronRight, Search, Filter, MapPin } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ClassStudents from './ClassStudents';
 import ClassTeachers from './ClassTeachers';
@@ -16,6 +16,7 @@ interface ClassSectionsProps {
 export default function ClassSections({ organization, userProfile }: ClassSectionsProps) {
   const [sections, setSections] = useState<ClassSection[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [classrooms, setClassrooms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [selectedSection, setSelectedSection] = useState<ClassSection | null>(null);
@@ -30,7 +31,8 @@ export default function ClassSections({ organization, userProfile }: ClassSectio
     stream: 'Science',
     sectionNumber: 1,
     capacity: 30,
-    status: 'active' as const
+    status: 'active' as const,
+    classroomId: ''
   });
 
   useEffect(() => {
@@ -105,9 +107,15 @@ export default function ClassSections({ organization, userProfile }: ClassSectio
       setTeachers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Teacher)));
     });
 
+    const classroomsQ = query(collection(db, 'organizations', organization.id, 'classrooms'));
+    const unsubscribeClassrooms = onSnapshot(classroomsQ, (snapshot) => {
+      setClassrooms(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
     return () => {
       unsubSections.then(unsub => { if (unsub) unsub(); });
       unsubscribeTeachers();
+      unsubscribeClassrooms();
     };
   }, [organization.id, userProfile?.role, userProfile?.entityId, userProfile?.uid]);
 
@@ -129,7 +137,8 @@ export default function ClassSections({ organization, userProfile }: ClassSectio
         stream: 'Science',
         sectionNumber: 1,
         capacity: 30,
-        status: 'active'
+        status: 'active',
+        classroomId: ''
       });
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `organizations/${organization.id}/class_sections`);
@@ -211,6 +220,12 @@ export default function ClassSections({ organization, userProfile }: ClassSectio
                         <Users className="w-4 h-4" />
                         <span>Max {section.capacity}</span>
                       </div>
+                      {section.classroomId && (
+                        <div className="flex items-center gap-1 text-sm">
+                          <MapPin className="w-4 h-4" />
+                          <span>{classrooms.find(r => r.id === section.classroomId)?.name || 'Unknown Room'}</span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-1 text-sm">
                         <Check className={`w-4 h-4 ${section.status === 'active' ? 'text-green-500' : 'text-red-500'}`} />
                         <span className="capitalize">{section.status}</span>
@@ -360,6 +375,20 @@ export default function ClassSections({ organization, userProfile }: ClassSectio
                         className="w-full bg-black/5 border border-black/10 rounded-2xl py-4 px-6 text-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-black/5"
                       />
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-black/40 uppercase tracking-widest mb-2">Assigned Classroom</label>
+                    <select
+                      required
+                      value={formData.classroomId}
+                      onChange={(e) => setFormData({ ...formData, classroomId: e.target.value })}
+                      className="w-full bg-black/5 border border-black/10 rounded-2xl py-4 px-6 text-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-black/5"
+                    >
+                      <option value="">Select Classroom</option>
+                      {classrooms.map(room => (
+                        <option key={room.id} value={room.id}>{room.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div className="flex gap-4 pt-4">

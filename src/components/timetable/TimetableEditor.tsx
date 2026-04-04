@@ -53,7 +53,6 @@ export default function TimetableEditor({ organization, timetable, onBack }: Tim
     slotId: '',
     classSectionId: '',
     teacherId: '',
-    classroomId: '',
     subject: ''
   });
 
@@ -128,8 +127,11 @@ export default function TimetableEditor({ organization, timetable, onBack }: Tim
   const handleManualAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const selectedClass = classes.find(c => c.id === manualFormData.classSectionId);
+      
       await addDoc(collection(db, 'organizations', organization.id, 'timetable_entries'), {
         ...manualFormData,
+        classroomId: selectedClass?.classroomId || '',
         timetableId: timetable.id,
         organizationId: organization.id
       });
@@ -138,7 +140,6 @@ export default function TimetableEditor({ organization, timetable, onBack }: Tim
         slotId: '',
         classSectionId: '',
         teacherId: '',
-        classroomId: '',
         subject: ''
       });
     } catch (err) {
@@ -805,18 +806,6 @@ export default function TimetableEditor({ organization, timetable, onBack }: Tim
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-black/40 uppercase tracking-widest mb-2">Classroom</label>
-                    <select
-                      required
-                      value={manualFormData.classroomId}
-                      onChange={(e) => setManualFormData({ ...manualFormData, classroomId: e.target.value })}
-                      className="w-full bg-black/5 border border-black/10 rounded-2xl py-4 px-6 text-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-black/5"
-                    >
-                      <option value="">Select Classroom</option>
-                      {classrooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
                     <label className="block text-sm font-bold text-black/40 uppercase tracking-widest mb-2">Subject</label>
                     <select
                       required
@@ -825,7 +814,11 @@ export default function TimetableEditor({ organization, timetable, onBack }: Tim
                       className="w-full bg-black/5 border border-black/10 rounded-2xl py-4 px-6 text-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-black/5"
                     >
                       <option value="">Select Subject</option>
-                      {subjects.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                      {subjects.map(s => (
+                        <option key={s.id} value={s.name}>
+                          {s.name} ({s.category || 'General'})
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>

@@ -54,14 +54,31 @@ export default function FaceRecognitionAttendance({ organization, onAttendanceMa
 
   const stopCamera = () => {
     if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach(track => track.stop());
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
       setIsCameraOn(false);
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
   const handleScan = async () => {
-    if (!videoRef.current || !isModelLoaded || isScanning) return;
+    if (!videoRef.current || !isModelLoaded || isScanning || !isCameraOn) return;
+
+    // Check if tracks are still active
+    const stream = videoRef.current.srcObject as MediaStream;
+    if (!stream || !stream.getTracks().some(track => track.readyState === 'live')) {
+      setStatus({ type: 'error', message: 'Camera track is not active.' });
+      return;
+    }
 
     setIsScanning(true);
     setStatus({ type: 'loading', message: 'Scanning face...' });

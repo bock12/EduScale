@@ -63,7 +63,13 @@ export default function FaceAttendance({ onMatch, organizationId }: FaceAttendan
   };
 
   const handleScan = async () => {
-    if (!videoRef.current || !canvasRef.current || !isModelLoaded) return;
+    if (!videoRef.current || !canvasRef.current || !isModelLoaded || !isScanning) return;
+
+    // Check if tracks are still active
+    const stream = videoRef.current.srcObject as MediaStream;
+    if (!stream || !stream.getTracks().some(track => track.readyState === 'live')) {
+      return;
+    }
 
     const displaySize = { width: videoRef.current.videoWidth, height: videoRef.current.videoHeight };
     faceapi.matchDimensions(canvasRef.current, displaySize);
@@ -93,7 +99,13 @@ export default function FaceAttendance({ onMatch, organizationId }: FaceAttendan
         handleScan();
       }, 1000);
     }
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
   }, [isScanning, isModelLoaded]);
 
   return (
