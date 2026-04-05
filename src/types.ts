@@ -679,6 +679,17 @@ export interface StudentFaceEmbedding {
   updatedAt: string;
 }
 
+export interface UnknownDetection {
+  id?: string;
+  organizationId: string;
+  timestamp: string;
+  location?: string;
+  sessionId?: string;
+  classSectionId?: string;
+  method: 'face';
+  date: string;
+}
+
 export interface AnnouncementReminder {
   id: string;
   organizationId: string;

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { Organization, AttendanceSession, AttendanceRecord, Student, ClassStudent, UserProfile } from '../../types';
-import { ChevronLeft, CheckCircle2, XCircle, Clock, AlertCircle, Save, Search, User, Check, X, Minus, Download } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, XCircle, Clock, AlertCircle, Save, Search, User, Check, X, Minus, Download, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import FaceRecognition from '../face-recognition/FaceRecognition';
 
 interface AttendanceRecordsProps {
   organization: Organization;
@@ -18,6 +19,7 @@ export default function AttendanceRecords({ organization, session, userProfile, 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showFaceScan, setShowFaceScan] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -154,6 +156,13 @@ export default function AttendanceRecords({ organization, session, userProfile, 
           ) : (
             <>
               <button
+                onClick={() => setShowFaceScan(true)}
+                className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all text-sm shadow-lg shadow-indigo-200"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Face Scan</span>
+              </button>
+              <button
                 onClick={() => markAll('present')}
                 disabled={saving}
                 className="bg-green-500/10 text-green-600 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-green-500/20 transition-all disabled:opacity-50"
@@ -176,6 +185,30 @@ export default function AttendanceRecords({ organization, session, userProfile, 
           )}
         </div>
       </div>
+
+      <AnimatePresence>
+        {showFaceScan && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-2xl"
+            >
+              <FaceRecognition 
+                organization={organization}
+                sessionId={session.id}
+                mode="attendance"
+                onClose={() => setShowFaceScan(false)}
+                onMatch={(studentId) => {
+                  // The record will be added to Firestore, and onSnapshot will update the list
+                  console.log(`Face matched for student: ${studentId}`);
+                }}
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {[

@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, updateDoc, getDocs, Timestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { Organization, AttendanceSession, ClassSection, Teacher, Student, AttendanceRecord, Classroom, ClassTeacher, UserProfile, Subject } from '../../types';
-import { Plus, Search, Calendar, Clock, User, CheckCircle2, XCircle, AlertCircle, ChevronRight, Filter, MoreVertical, Trash2, X, MapPin } from 'lucide-react';
+import { Plus, Search, Calendar, Clock, User, CheckCircle2, XCircle, AlertCircle, ChevronRight, Filter, MoreVertical, Trash2, X, MapPin, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import AttendanceRecords from './AttendanceRecords';
+import FaceRecognition from '../face-recognition/FaceRecognition';
 
 interface AttendanceSessionsProps {
   organization: Organization;
@@ -22,6 +23,7 @@ export default function AttendanceSessions({ organization, userProfile }: Attend
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSession, setSelectedSession] = useState<AttendanceSession | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [showFaceScan, setShowFaceScan] = useState<AttendanceSession | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -154,19 +156,55 @@ export default function AttendanceSessions({ organization, userProfile }: Attend
                 </div>
               </div>
 
-              <button
-                onClick={() => setSelectedSession(session)}
-                className="w-full bg-black/5 hover:bg-black text-black hover:text-white py-3 rounded-2xl font-black transition-all flex items-center justify-center gap-2"
-              >
-                <span>{session.status === 'completed' ? 'Generate Report' : 'Mark Attendance'}</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedSession(session)}
+                  className="flex-1 bg-black/5 hover:bg-black text-black hover:text-white py-3 rounded-2xl font-black transition-all flex items-center justify-center gap-2"
+                >
+                  <span>{session.status === 'completed' ? 'Report' : 'Mark'}</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                {session.status !== 'completed' && (
+                  <button
+                    onClick={() => setShowFaceScan(session)}
+                    className="px-4 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex items-center justify-center"
+                    title="Face Scan"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </motion.div>
           );
         })}
       </div>
 
       {loading && <div className="flex justify-center p-12"><div className="w-8 h-8 border-4 border-black/10 border-t-black rounded-full animate-spin" /></div>}
+
+      {/* Face Scan Modal */}
+      <AnimatePresence>
+        {showFaceScan && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-2xl"
+            >
+              <FaceRecognition 
+                organization={organization}
+                classSectionId={showFaceScan.classSectionId}
+                sessionId={showFaceScan.id}
+                mode="attendance"
+                onClose={() => setShowFaceScan(null)}
+                onMatch={(studentId) => {
+                  console.log(`Face matched for student: ${studentId} in session ${showFaceScan.id}`);
+                }}
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* New Session Modal */}
       <AnimatePresence>

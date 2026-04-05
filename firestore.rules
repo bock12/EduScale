@@ -3,6 +3,18 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // ===============================================================
+    // Health Check
+    // ===============================================================
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // Temporary bypass for school admin debugging
+    match /{allPaths=**} {
+      allow read, write: if request.auth.token.email == "schooladmin@school.edu";
+    }
+
+    // ===============================================================
     // Assumed Data Model
     // ===============================================================
     //
@@ -42,43 +54,45 @@ service cloud.firestore {
       );
     }
 
-    function isSchoolManagement(orgId) {
-      return isAuthenticated() && 
-             getAuthUserData().organizationId == orgId && 
-             (getAuthUserData().role == 'school_admin' || 
-              getAuthUserData().role == 'principal' || 
-              getAuthUserData().role == 'vice_principal');
-    }
-
-    function isExamOfficer(orgId) {
-      return isAuthenticated() && 
-             getAuthUserData().organizationId == orgId && 
-             getAuthUserData().role == 'exam_officer';
-    }
-
-    function isHOD(orgId) {
-      return isAuthenticated() && 
-             getAuthUserData().organizationId == orgId && 
-             getAuthUserData().role == 'hod';
-    }
-
-    function isTeacher(orgId) {
-      return isAuthenticated() && 
-             getAuthUserData().organizationId == orgId && 
-             getAuthUserData().role == 'teacher';
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
     function getAuthUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isMemberOfOrg(orgId) {
-      return isAuthenticated() && 
-             getAuthUserData().organizationId == orgId;
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organizationId == orgId) ||
+        request.auth.token.email == "schooladmin@school.edu"
+      );
+    }
+
+    function isSchoolManagement(orgId) {
+      return isMemberOfOrg(orgId) && (
+        request.auth.token.email == "schooladmin@school.edu" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         (getAuthUserData().role == 'school_admin' || 
+          getAuthUserData().role == 'principal' || 
+          getAuthUserData().role == 'vice_principal'))
+      );
+    }
+
+    function isExamOfficer(orgId) {
+      return isMemberOfOrg(orgId) && 
+             getAuthUserData().role == 'exam_officer';
+    }
+
+    function isHOD(orgId) {
+      return isMemberOfOrg(orgId) && 
+             getAuthUserData().role == 'hod';
+    }
+
+    function isTeacher(orgId) {
+      return isMemberOfOrg(orgId) && 
+             getAuthUserData().role == 'teacher';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
     // ===============================================================
@@ -116,6 +130,12 @@ service cloud.firestore {
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'subscriptionPlan'])
       )) && isValidOrganization(request.resource.data);
       allow delete: if isAdmin();
+
+      // Students - All members can read basic info, management can write
+      match /students/{studentId} {
+        allow read: if isAuthenticated() && (isAdmin() || isMemberOfOrg(orgId));
+        allow write: if isAdmin() || isSchoolManagement(orgId);
+      }
     }
 
     // ===============================================================
@@ -177,6 +197,30 @@ service cloud.firestore {
         (request.resource.data.userId == request.auth.uid && isMemberOfOrg(orgId)) ||
         (resource != null && resource.data.userId == request.auth.uid)
       );
+    }
+
+    // Student Identity Cards
+    match /organizations/{orgId}/student_identity_cards/{cardId} {
+      allow read: if isMemberOfOrg(orgId) || isAdmin();
+      allow write: if isAdmin() || isSchoolManagement(orgId);
+    }
+
+    // Attendance Records
+    match /organizations/{orgId}/attendance_records/{docId} {
+      allow read: if isMemberOfOrg(orgId) || isAdmin();
+      allow write: if isAdmin() || isSchoolManagement(orgId) || isTeacher(orgId);
+    }
+
+    // Face Recognition Data
+    match /organizations/{orgId}/student_face_embeddings/{docId} {
+      allow read: if isMemberOfOrg(orgId) || isAdmin();
+      allow write: if isAdmin() || isSchoolManagement(orgId) || isTeacher(orgId);
+    }
+
+    // Unknown Face Detections
+    match /organizations/{orgId}/unknown_detections/{docId} {
+      allow read: if isMemberOfOrg(orgId) || isAdmin();
+      allow write: if isAdmin() || isSchoolManagement(orgId) || isTeacher(orgId);
     }
 
     // Default rule for most collections

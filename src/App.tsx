@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, onSnapshot, collection, query, where, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
@@ -42,7 +42,7 @@ import AIPredictionDashboard from './components/ai-prediction/AIPredictionDashbo
 import AnnouncementsHub from './components/announcements/AnnouncementsHub';
 
 import SubjectManagement from './components/management/SubjectManagement';
-import FaceRecognitionAttendance from './components/attendance/FaceRecognitionAttendance';
+import FaceRecognition from './components/face-recognition/FaceRecognition';
 
 // Placeholder components for other routes
 const Placeholder = ({ title }: { title: string }) => (
@@ -64,6 +64,7 @@ export default function App() {
   const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [inviteId, setInviteId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Check for invite in URL
@@ -290,7 +291,7 @@ export default function App() {
               <Route path="/timetable" element={organization ? <TimetableDashboard organization={organization} userProfile={dbUser} /> : <Placeholder title="AI Timetable Generator" />} />
               <Route path="/assignments" element={organization ? <AssignmentsDashboard organization={organization} userProfile={dbUser} /> : <Placeholder title="Assignments" />} />
               <Route path="/attendance" element={organization ? <AttendanceDashboard organization={organization} userProfile={dbUser} /> : <Placeholder title="Attendance Tracking" />} />
-              <Route path="/attendance/face" element={organization ? <FaceRecognitionAttendance organization={organization} /> : <Placeholder title="Face Recognition Attendance" />} />
+              <Route path="/attendance/face" element={organization ? <FaceRecognition organization={organization} onClose={() => navigate('/attendance')} /> : <Placeholder title="Face Recognition Attendance" />} />
               <Route path="/subjects" element={organization ? <SubjectManagement organization={organization} /> : <Placeholder title="Subject Management" />} />
               <Route path="/exams" element={organization ? <ExamsDashboard organization={organization} userProfile={dbUser} /> : <Placeholder title="Exams & AI Grading" />} />
               <Route path="/identity" element={organization ? <IdentityDashboard organization={organization} userProfile={dbUser} /> : <Placeholder title="Identity System" />} />

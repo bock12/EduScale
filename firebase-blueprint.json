@@ -1631,6 +1631,21 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["organizationId", "announcementId", "userId", "reminderTime", "status", "createdAt"]
+    },
+    "unknown_detections": {
+      "title": "Unknown Face Detection",
+      "description": "A record of an unidentified face detected by the system.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "date": { "type": "string", "format": "date" },
+        "location": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "classSectionId": { "type": "string" },
+        "method": { "type": "string", "enum": ["face"] }
+      },
+      "required": ["organizationId", "timestamp", "date", "method"]
     }
   },
   "firestore": {
@@ -1745,6 +1760,7 @@
     "/organizations/{orgId}/class_subjects/{linkId}": { "schema": "class_subjects", "description": "Class subject assignments." },
     "/organizations/{orgId}/teacher_tasks/{taskId}": { "schema": "teacher_tasks", "description": "Teacher tasks." },
     "/organizations/{orgId}/student_face_embeddings/{embeddingId}": { "schema": "student_face_embeddings", "description": "Student face recognition data." },
-    "/organizations/{orgId}/announcement_reminders/{reminderId}": { "schema": "announcement_reminders", "description": "Announcement reminders." }
+    "/organizations/{orgId}/announcement_reminders/{reminderId}": { "schema": "announcement_reminders", "description": "Announcement reminders." },
+    "/organizations/{orgId}/unknown_detections/{detectionId}": { "schema": "unknown_detections", "description": "Unknown face detections." }
   }
 }

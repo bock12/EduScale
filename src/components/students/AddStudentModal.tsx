@@ -30,19 +30,19 @@ export default function AddStudentModal({ organization, isOpen, onClose, onSucce
   });
 
   useEffect(() => {
-    if (isOpen && !formData.studentId) {
+    if (isOpen && !formData.studentId && formData.gradeLevel) {
       const fetchLatestId = async () => {
         try {
-          const nextId = await generateStudentId(organization.id);
+          const nextId = await generateStudentId(organization.id, formData.gradeLevel);
           setFormData(prev => ({ ...prev, studentId: nextId }));
         } catch (err) {
           console.error("Error fetching latest student ID:", err);
-          setFormData(prev => ({ ...prev, studentId: `STU-${new Date().getFullYear()}-001` }));
+          setFormData(prev => ({ ...prev, studentId: `261001` }));
         }
       };
       fetchLatestId();
     }
-  }, [isOpen, organization.id, formData.studentId]);
+  }, [isOpen, organization.id, formData.gradeLevel]);
 
   if (!isOpen) return null;
 

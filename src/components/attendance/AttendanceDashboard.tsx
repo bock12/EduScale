@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Organization, UserProfile } from '../../types';
-import { Calendar, Users, AlertCircle, FileText, ChevronRight, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Calendar, Users, AlertCircle, FileText, ChevronRight, Clock, CheckCircle2, XCircle, Camera } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import AttendanceSessions from './AttendanceSessions';
 import AttendanceExceptions from './AttendanceExceptions';
 import AttendanceReports from './AttendanceReports';
 import DailyAttendance from './DailyAttendance';
 import StudentAttendance from '../student/StudentAttendance';
+import OfflineSyncIndicator from './OfflineSyncIndicator';
 
 interface AttendanceDashboardProps {
   organization: Organization;
@@ -35,6 +37,9 @@ export default function AttendanceDashboard({ organization, userProfile }: Atten
         <div>
           <h1 className="text-4xl font-black tracking-tight text-black">Attendance</h1>
           <p className="text-black/40 font-bold uppercase tracking-widest text-xs mt-2">Manage daily attendance and records</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <OfflineSyncIndicator organizationId={organization.id} />
         </div>
       </div>
 

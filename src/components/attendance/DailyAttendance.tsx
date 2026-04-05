@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { Organization, UserProfile, ClassSection, Student, DailyAttendance as DailyAttendanceType, ClassTeacher, ClassStudent } from '../../types';
-import { Calendar, Users, CheckCircle2, XCircle, Clock, AlertCircle, Save, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Calendar, Users, CheckCircle2, XCircle, Clock, AlertCircle, Save, ChevronLeft, ChevronRight, Search, Camera } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import FaceRecognition from '../face-recognition/FaceRecognition';
 
 interface DailyAttendanceProps {
   organization: Organization;
@@ -19,6 +20,7 @@ export default function DailyAttendance({ organization, userProfile }: DailyAtte
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFaceScan, setShowFaceScan] = useState(false);
 
   // Fetch sections where user is primary teacher
   useEffect(() => {
@@ -252,17 +254,49 @@ export default function DailyAttendance({ organization, userProfile }: DailyAtte
           </div>
         </div>
 
-        <div className="flex items-end">
+        <div className="flex items-end gap-3">
+          <button
+            onClick={() => setShowFaceScan(true)}
+            disabled={!selectedSection}
+            className="flex-1 bg-indigo-600 text-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50"
+          >
+            <Camera className="w-5 h-5" />
+            <span>Face Scan</span>
+          </button>
           <button
             onClick={handleSave}
             disabled={saving || !selectedSection}
-            className="w-full bg-black text-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-black/80 transition-all disabled:opacity-50"
+            className="flex-1 bg-black text-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-black/80 transition-all disabled:opacity-50"
           >
             {saving ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Save className="w-5 h-5" />}
             <span>{attendanceRecord?.id ? 'Update Records' : 'Save Attendance'}</span>
           </button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showFaceScan && selectedSection && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-2xl"
+            >
+              <FaceRecognition 
+                organization={organization}
+                classSectionId={selectedSection.id}
+                mode="attendance"
+                onClose={() => setShowFaceScan(false)}
+                onMatch={(studentId) => {
+                  // The record will be updated in Firestore, and onSnapshot will update the list
+                  console.log(`Face matched for student: ${studentId}`);
+                }}
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Quick Actions & Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

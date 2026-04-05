@@ -10,7 +10,8 @@ import {
   serverTimestamp, 
   getDoc,
   setDoc,
-  onSnapshot
+  onSnapshot,
+  deleteDoc
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../../firebase';
 import { Organization, Student, UserProfile } from '../../types';
@@ -36,14 +37,18 @@ import {
   Fingerprint,
   Wifi,
   WifiOff,
-  Zap
+  Zap,
+  Loader2,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import QRCode from 'react-qr-code';
 import QrScanner from './QrScanner';
-import FaceAttendance from './FaceAttendance';
+import FaceRecognition from '../face-recognition/FaceRecognition';
 import { generateStudentId, generateQrToken } from '../../lib/idGenerator';
 import { detectAttendanceAnomaly } from '../../lib/attendance-ai';
-import { saveOfflineAttendance, syncOfflineAttendance, getUnsyncedRecords } from '../../lib/offline-storage';
+import { saveAttendanceLocally, syncOfflineAttendance, getUnsyncedAttendanceCount } from '../../lib/db';
+import OfflineSyncIndicator from '../attendance/OfflineSyncIndicator';
 
 interface IdentityDashboardProps {
   organization: Organization;
@@ -72,42 +77,30 @@ export default function IdentityDashboard({ organization, userProfile }: Identit
   const [lastScanResult, setLastScanResult] = useState<{ success: boolean; message: string } | null>(null);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showCardModal, setShowCardModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'scanner' | 'face' | 'anomalies'>('overview');
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [unsyncedCount, setUnsyncedCount] = useState(0);
+  const [showFaceRegister, setShowFaceRegister] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'scanner' | 'face' | 'anomalies' | 'unknown'>('overview');
   const [anomalies, setAnomalies] = useState<any[]>([]);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    const checkUnsynced = async () => {
-      const records = await getUnsyncedRecords();
-      setUnsyncedCount(records.length);
-    };
-    checkUnsynced();
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isOnline && unsyncedCount > 0) {
-      syncOfflineAttendance(organization.id, () => {
-        setUnsyncedCount(prev => Math.max(0, prev - 1));
-      });
-    }
-  }, [isOnline, unsyncedCount, organization.id]);
+  const [unknownDetections, setUnknownDetections] = useState<any[]>([]);
+  const [selectedUnknown, setSelectedUnknown] = useState<any | null>(null);
+  const [showUnknownModal, setShowUnknownModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
+  const [studentToLink, setStudentToLink] = useState<string>('');
 
   useEffect(() => {
     const anomaliesRef = collection(db, 'organizations', organization.id, 'attendance_anomalies');
     const q = query(anomaliesRef, where('resolved', '==', false));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setAnomalies(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return () => unsubscribe();
+  }, [organization.id]);
+
+  useEffect(() => {
+    const unknownRef = collection(db, 'organizations', organization.id, 'unknown_detections');
+    const q = query(unknownRef);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setUnknownDetections(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
     return () => unsubscribe();
   }, [organization.id]);
@@ -148,21 +141,28 @@ export default function IdentityDashboard({ organization, userProfile }: Identit
     setLastScanResult(null);
     
     try {
-      // Result could be a studentId or a full verification URL
-      let studentId = result;
-      if (result.includes('/verify/student/')) {
-        studentId = result.split('/verify/student/')[1].split('?')[0];
+      // Find card by qrToken or studentId (result could be studentId from face recognition)
+      let card = Object.values(identityCards).find(c => c.qrToken === result || c.cardId === result);
+      let student = students.find(s => s.id === result);
+
+      if (!student && card) {
+        student = students.find(s => s.id === card.studentId);
       }
 
-      const student = students.find(s => s.id === studentId || s.studentId === studentId);
-      
       if (!student) {
-        setLastScanResult({ success: false, message: 'Invalid Student ID' });
+        setLastScanResult({ success: false, message: 'Student not found' });
         setTimeout(() => setLastScanResult(null), 3000);
         return;
       }
 
-      const card = identityCards[student.id];
+      // If we found student but no card, and it's not a face match, it's invalid
+      // But for face match, we might not need the card to be active? 
+      // Actually, let's assume face match is valid if student exists.
+      // However, if we want to enforce card status even for face match:
+      if (!card) {
+        card = Object.values(identityCards).find(c => c.studentId === student!.id);
+      }
+      
       if (card && card.status !== 'active') {
         setLastScanResult({ success: false, message: `Card is ${card.status}` });
         setTimeout(() => setLastScanResult(null), 3000);
@@ -174,30 +174,25 @@ export default function IdentityDashboard({ organization, userProfile }: Identit
         organizationId: organization.id,
         date: new Date().toISOString().split('T')[0],
         status: 'present',
-        method: 'qr',
-        timestamp: new Date(),
-        classId: 'general' // Default for school entry
+        method: card ? 'qr' : 'face', // If no card found in result, assume face (or it was studentId)
+        timestamp: new Date().toISOString(),
+        classId: 'general'
       };
 
-      if (isOnline) {
-        const attendanceRef = collection(db, 'organizations', organization.id, 'attendance');
-        const docRef = await addDoc(attendanceRef, {
+      if (navigator.onLine) {
+        const attendanceRef = collection(db, 'organizations', organization.id, 'attendance_records');
+        await addDoc(attendanceRef, {
           ...attendanceData,
-          timestamp: serverTimestamp(),
+          createdAt: serverTimestamp(),
           markedBy: userProfile?.uid || 'system'
         });
 
-        // Run AI Anomaly Detection
         detectAttendanceAnomaly({
           ...attendanceData,
           timestamp: new Date()
         }, organization.id);
       } else {
-        await saveOfflineAttendance({
-          ...attendanceData,
-          timestamp: new Date().toISOString()
-        });
-        setUnsyncedCount(prev => prev + 1);
+        await saveAttendanceLocally(attendanceData as any);
       }
 
       setLastScanResult({ success: true, message: `Attendance recorded for ${student.firstName}` });
@@ -205,7 +200,6 @@ export default function IdentityDashboard({ organization, userProfile }: Identit
         setLastScanResult(null);
         setShowScanner(false);
       }, 2000);
-
     } catch (err) {
       console.error('Error processing scan:', err);
       setLastScanResult({ success: false, message: 'Error recording attendance' });
@@ -216,7 +210,7 @@ export default function IdentityDashboard({ organization, userProfile }: Identit
 
   const issueNewCard = async (student: Student) => {
     try {
-      const cardId = student.studentId || await generateStudentId(organization.id);
+      const cardId = student.studentId || await generateStudentId(organization.id, student.gradeLevel);
       
       // Update student with ID if they don't have one
       if (!student.studentId) {
@@ -271,15 +265,7 @@ export default function IdentityDashboard({ organization, userProfile }: Identit
           <p className="text-[#9e9e9e] text-sm md:text-base">Manage student ID cards, NFC tags, and QR attendance.</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <div className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl text-xs md:text-sm font-bold ${isOnline ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-            {isOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
-            {isOnline ? 'Online' : 'Offline Mode'}
-            {unsyncedCount > 0 && (
-              <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px]">
-                {unsyncedCount} pending
-              </span>
-            )}
-          </div>
+          <OfflineSyncIndicator organizationId={organization.id} />
           <button 
             onClick={() => setActiveTab('scanner')}
             className={`flex items-center gap-2 font-bold px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl transition-all shadow-lg text-sm md:text-base ${activeTab === 'scanner' ? 'bg-blue-600 text-white shadow-blue-200' : 'bg-white text-[#4a4a4a] border border-[#e5e5e5]'}`}
@@ -313,6 +299,17 @@ export default function IdentityDashboard({ organization, userProfile }: Identit
           {anomalies.length > 0 && (
             <span className="px-2 py-0.5 bg-white text-red-600 rounded-full text-[10px]">
               {anomalies.length}
+            </span>
+          )}
+        </button>
+        <button 
+          onClick={() => setActiveTab('unknown')}
+          className={`px-4 md:px-6 py-2 rounded-xl font-bold transition-all whitespace-nowrap flex items-center gap-2 text-sm md:text-base ${activeTab === 'unknown' ? 'bg-amber-600 text-white' : 'text-[#9e9e9e] hover:text-amber-600'}`}
+        >
+          Unknown Faces
+          {unknownDetections.length > 0 && (
+            <span className="px-2 py-0.5 bg-white text-amber-600 rounded-full text-[10px]">
+              {unknownDetections.length}
             </span>
           )}
         </button>
@@ -501,9 +498,11 @@ export default function IdentityDashboard({ organization, userProfile }: Identit
 
       {activeTab === 'face' && (
         <div className="max-w-2xl mx-auto">
-          <FaceAttendance 
+          <FaceRecognition 
             onMatch={handleQrScan}
-            organizationId={organization.id}
+            organization={organization}
+            mode="identity"
+            onClose={() => setActiveTab('overview')}
           />
         </div>
       )}
@@ -607,8 +606,250 @@ export default function IdentityDashboard({ organization, userProfile }: Identit
         </div>
       )}
 
+      {activeTab === 'unknown' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold flex items-center gap-2">
+              <AlertTriangle className="w-6 h-6 text-amber-600" />
+              Unknown Face Detections
+            </h3>
+            <p className="text-sm text-[#9e9e9e]">{unknownDetections.length} records found</p>
+          </div>
+
+          {unknownDetections.length === 0 ? (
+            <div className="bg-white p-12 rounded-[32px] border border-[#e5e5e5] text-center">
+              <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <ShieldCheck className="w-8 h-8" />
+              </div>
+              <h4 className="text-lg font-bold">No Unknown Faces</h4>
+              <p className="text-[#9e9e9e]">All detected faces have been successfully identified.</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-[32px] border border-[#e5e5e5] overflow-hidden shadow-sm">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-[#f9f9f9] border-b border-[#e5e5e5]">
+                    <th className="px-8 py-4 text-[10px] font-bold text-[#9e9e9e] uppercase tracking-widest">Time & Date</th>
+                    <th className="px-8 py-4 text-[10px] font-bold text-[#9e9e9e] uppercase tracking-widest">Location</th>
+                    <th className="px-8 py-4 text-[10px] font-bold text-[#9e9e9e] uppercase tracking-widest">Method</th>
+                    <th className="px-8 py-4 text-[10px] font-bold text-[#9e9e9e] uppercase tracking-widest text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#e5e5e5]">
+                  {unknownDetections.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map((detection) => (
+                    <tr 
+                      key={detection.id} 
+                      className="hover:bg-[#fcfcfc] transition-all cursor-pointer"
+                      onClick={() => {
+                        setSelectedUnknown(detection);
+                        setShowUnknownModal(true);
+                      }}
+                    >
+                      <td className="px-8 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                            <Clock className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-[#1a1a1a] text-sm">
+                              {new Date(detection.timestamp).toLocaleTimeString()}
+                            </p>
+                            <p className="text-[10px] text-[#9e9e9e] uppercase font-bold tracking-widest">
+                              {new Date(detection.timestamp).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-4">
+                        <span className="text-sm font-medium text-[#4a4a4a]">
+                          {detection.location || 'Main Entrance'}
+                        </span>
+                      </td>
+                      <td className="px-8 py-4">
+                        <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-md text-[10px] font-bold uppercase tracking-widest">
+                          {detection.method}
+                        </span>
+                      </td>
+                      <td className="px-8 py-4 text-right">
+                        <button 
+                          className="text-blue-600 font-bold text-sm hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedUnknown(detection);
+                            setShowUnknownModal(true);
+                          }}
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Modals */}
       <AnimatePresence>
+        {showUnknownModal && selectedUnknown && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-3xl md:rounded-[40px] overflow-hidden w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+            >
+              <div className="p-6 md:p-8 border-b border-[#e5e5e5] flex items-center justify-between sticky top-0 bg-white z-10">
+                <div className="flex items-center gap-4">
+                  <div className="p-2.5 md:p-3 bg-amber-50 text-amber-600 rounded-xl md:rounded-2xl">
+                    <AlertTriangle className="w-5 h-5 md:w-6 md:h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg md:text-xl font-bold">Unknown Face Details</h3>
+                    <p className="text-xs md:text-sm text-[#9e9e9e]">Detection Record: {selectedUnknown.id}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowUnknownModal(false)}
+                  className="p-2 hover:bg-[#f5f5f5] rounded-full transition-all"
+                >
+                  <XCircle className="w-5 h-5 md:w-6 md:h-6 text-[#9e9e9e]" />
+                </button>
+              </div>
+
+              <div className="p-6 md:p-8 space-y-8">
+                {/* Captured Image */}
+                <div className="aspect-video bg-black rounded-2xl overflow-hidden border-4 border-[#f5f5f5] shadow-inner relative group">
+                  {selectedUnknown.image ? (
+                    <img 
+                      src={selectedUnknown.image} 
+                      alt="Captured Unknown Face" 
+                      className="w-full h-full object-contain"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-white/40">
+                      <Camera className="w-12 h-12 mb-2" />
+                      <p className="text-sm font-bold">No image captured</p>
+                    </div>
+                  )}
+                  <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg text-white text-[10px] font-bold uppercase tracking-widest">
+                    Captured Frame
+                  </div>
+                </div>
+
+                {/* Info Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-[#9e9e9e] uppercase tracking-widest">Timestamp</p>
+                    <p className="font-bold text-[#1a1a1a]">{new Date(selectedUnknown.timestamp).toLocaleString()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-[#9e9e9e] uppercase tracking-widest">Location</p>
+                    <p className="font-bold text-[#1a1a1a]">{selectedUnknown.location || 'Main Entrance'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-[#9e9e9e] uppercase tracking-widest">Detection Method</p>
+                    <p className="font-bold text-[#1a1a1a] uppercase">{selectedUnknown.method}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold text-[#9e9e9e] uppercase tracking-widest">Status</p>
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md text-[10px] font-bold uppercase tracking-widest">
+                      Unidentified
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="space-y-4 pt-4 border-t border-[#e5e5e5]">
+                  <h4 className="text-sm font-bold text-[#1a1a1a]">Management Actions</h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <label className="block text-[10px] font-bold text-[#9e9e9e] uppercase tracking-widest">Move to Known Faces</label>
+                      <select 
+                        value={studentToLink}
+                        onChange={(e) => setStudentToLink(e.target.value)}
+                        className="w-full bg-[#f5f5f5] border border-[#e5e5e5] rounded-xl py-3 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      >
+                        <option value="">Select Student...</option>
+                        {students.map(s => (
+                          <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.studentId})</option>
+                        ))}
+                      </select>
+                      <button 
+                        disabled={!studentToLink || isMoving}
+                        onClick={async () => {
+                          setIsMoving(true);
+                          try {
+                            // In a real app, we'd re-process the image to get the descriptor
+                            // For now, we'll just mark it as linked and maybe redirect to face registration
+                            await updateDoc(doc(db, 'organizations', organization.id, 'unknown_detections', selectedUnknown.id), {
+                              linkedStudentId: studentToLink,
+                              status: 'linked',
+                              resolvedAt: serverTimestamp()
+                            });
+                            
+                            // Redirect to face registration for this student
+                            setSelectedStudent(students.find(s => s.id === studentToLink) || null);
+                            setShowUnknownModal(false);
+                            setShowFaceRegister(true);
+                          } catch (err) {
+                            console.error('Error linking student:', err);
+                          } finally {
+                            setIsMoving(false);
+                          }
+                        }}
+                        className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {isMoving ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                        Link & Register Face
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="block text-[10px] font-bold text-[#9e9e9e] uppercase tracking-widest">Danger Zone</label>
+                      <button 
+                        disabled={isDeleting}
+                        onClick={async () => {
+                          if (!window.confirm('Are you sure you want to delete this detection record?')) return;
+                          setIsDeleting(true);
+                          try {
+                            await deleteDoc(doc(db, 'organizations', organization.id, 'unknown_detections', selectedUnknown.id));
+                            setShowUnknownModal(false);
+                          } catch (err) {
+                            console.error('Error deleting record:', err);
+                          } finally {
+                            setIsDeleting(false);
+                          }
+                        }}
+                        className="w-full bg-red-50 text-red-600 font-bold py-3 rounded-xl hover:bg-red-100 transition-all flex items-center justify-center gap-2"
+                      >
+                        {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        Delete Record
+                      </button>
+                      <p className="text-[10px] text-[#9e9e9e] leading-relaxed">
+                        Deleting this record will permanently remove the captured image and timestamp data from the system.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 md:p-8 bg-[#f5f5f5] border-t border-[#e5e5e5] flex justify-end">
+                <button 
+                  onClick={() => setShowUnknownModal(false)}
+                  className="px-8 py-3 bg-[#1a1a1a] text-white font-bold rounded-xl md:rounded-2xl hover:bg-black transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {showCardModal && selectedStudent && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <motion.div 
@@ -647,8 +888,16 @@ export default function IdentityDashboard({ organization, userProfile }: Identit
                         <ShieldCheck className="w-4 h-4 md:w-6 md:h-6" />
                         <span className="font-bold text-[10px] md:text-sm tracking-widest uppercase">{organization.name}</span>
                       </div>
-                      <div className="w-8 h-8 md:w-12 md:h-12 bg-white/20 backdrop-blur-md rounded-lg md:rounded-xl flex items-center justify-center">
-                        <QrCode className="w-4 h-4 md:w-6 md:h-6" />
+                      <div className="w-8 h-8 md:w-12 md:h-12 bg-white p-1 rounded-lg md:rounded-xl flex items-center justify-center">
+                        {identityCards[selectedStudent.id] ? (
+                          <QRCode 
+                            value={identityCards[selectedStudent.id].qrToken} 
+                            size={48}
+                            style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                          />
+                        ) : (
+                          <QrCode className="w-4 h-4 md:w-6 md:h-6 text-blue-600" />
+                        )}
                       </div>
                     </div>
 
@@ -745,6 +994,22 @@ export default function IdentityDashboard({ organization, userProfile }: Identit
                             <p className="text-[10px] md:text-xs text-red-400">Deactivate all access immediately</p>
                           </div>
                         </button>
+
+                        <button 
+                          onClick={() => {
+                            setShowCardModal(false);
+                            setShowFaceRegister(true);
+                          }}
+                          className="w-full flex items-center gap-4 p-4 bg-blue-600 text-white rounded-2xl border border-blue-700 hover:bg-blue-700 transition-all text-left shadow-lg shadow-blue-100"
+                        >
+                          <div className="p-2 bg-white/20 rounded-xl">
+                            <Camera className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm md:text-base">Register Face</p>
+                            <p className="text-[10px] md:text-xs text-white/70">Enable facial recognition access</p>
+                          </div>
+                        </button>
                       </>
                     )}
                   </div>
@@ -769,6 +1034,27 @@ export default function IdentityDashboard({ organization, userProfile }: Identit
                   Done
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showFaceRegister && selectedStudent && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="w-full max-w-2xl"
+            >
+              <FaceRecognition 
+                organization={organization}
+                mode="register"
+                studentId={selectedStudent.id}
+                onClose={() => setShowFaceRegister(false)}
+                onMatch={() => {
+                  // Refresh or show success
+                }}
+              />
             </motion.div>
           </div>
         )}
